@@ -1,0 +1,11 @@
+-- 0004 quebrou o upsert do perfil (bootstrap do app): o PostgREST inclui a
+-- coluna-alvo do conflito (id) no SET do ON CONFLICT DO UPDATE, e id não estava
+-- entre as colunas liberadas em 0004 → erro 42501 "permission denied", e todo
+-- primeiro login gravava o perfil com nome vazio.
+--
+-- Liberar UPDATE apenas da coluna id é seguro: a policy profiles_update_self fixa
+-- id = auth.uid() tanto no USING quanto no WITH CHECK, então ninguém consegue
+-- mudar o próprio id nem tocar em linha alheia. group_id continua FORA dos grants,
+-- então só as funções security definer (create_group/join_group) o alteram —
+-- a proteção de 0004 permanece intacta.
+grant update (id) on table public.profiles to authenticated;

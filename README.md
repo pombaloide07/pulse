@@ -56,6 +56,23 @@ arredondados, gradientes suaves — **com paleta autoral própria**:
 Tipografia: **Fraunces** (títulos, números-herói) + **Instrument Sans** (UI e dados).
 Cores de gráfico validadas (contraste/CVD) contra a superfície creme.
 
+## Fase 3 — Desafios
+
+Prazo + grupo + check-in (a mágica do GymRats, PRD §7.4). O check-in é a presença:
+concluiu treino num dia do prazo, pontuou — ranking por contagem de dias, nunca por
+corpo. Desafios vivem na aba Grupo (criar: nome + 15/30/45 dias), funcionam offline
+(demo) e no grupo real (tabela `challenges` com RLS + realtime). O grupo também vê a
+variação % de carga de cada um (`profiles.stats`, só de sessões reais — nunca dados
+de demonstração).
+
+## Deploy
+
+- **Código**: [github.com/pombaloide07/pulse](https://github.com/pombaloide07/pulse) (público).
+- **Produção**: `https://pulse-pedro-budgets.vercel.app` — o build da Vercel clona o
+  repo (`git clone … && npm install && npm run build`, output `repo/dist`).
+- O auth do Supabase (site_url + allowlist) já aponta pra URL de produção e pro
+  localhost de dev.
+
 ## Stack
 
 Vite + React + TypeScript. Estado local-first em `localStorage`

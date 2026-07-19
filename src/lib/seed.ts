@@ -362,6 +362,37 @@ export function migrateV2toV3(v2: StateV2): AppState {
   };
 }
 
+/**
+ * Estado inicial de uma conta REAL (pós-onboarding): o nome da pessoa, o plano
+ * A/B/C e os pratos padrão como ponto de partida útil — mas zero histórico,
+ * zero amigos-demo, zero desafio. Amigos e desafios reais vêm do grupo (sync).
+ */
+export function buildFreshState(name: string): AppState {
+  const clean = name.trim() || "Atleta";
+  const me: Member = {
+    id: "m-me",
+    name: clean,
+    initials: clean.slice(0, 2).toUpperCase(),
+    color: "#e4573d",
+    isMe: true,
+    presence: [],
+    stats: {},
+  };
+  return {
+    version: 3,
+    userName: clean,
+    workouts: DEFAULT_WORKOUTS,
+    sessions: [],
+    members: [me],
+    activeSessionId: null,
+    profile: makeProfile(75),
+    dishes: DEFAULT_DISHES,
+    meals: [],
+    weights: [],
+    challenges: [],
+  };
+}
+
 export function buildSeedState(): AppState {
   const rnd = mulberry32(20260718);
   const weeks = 9;

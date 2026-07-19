@@ -1,4 +1,5 @@
 import type { Food, FoodGroup } from "./types";
+import { TACO_FOODS } from "./tacoFoods";
 
 /**
  * Curadoria de comida brasileira de verdade (valores aproximados por 100g,
@@ -76,7 +77,31 @@ export const FOODS: Food[] = [
   { id: "farofa", name: "Farofa pronta", group: "Da vida real", per100: { kcal: 406, prot: 2.5, carb: 76.7, fat: 9.1 }, unitName: "1 colher", unitGrams: 25 },
 ];
 
-export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(FOODS.map((f) => [f.id, f]));
+/**
+ * Base local completa: a curadoria (com dicas de porção) na frente,
+ * mais a TACO inteira (~590 alimentos, NEPA/Unicamp) atrás.
+ */
+export const ALL_FOODS: Food[] = [...FOODS, ...TACO_FOODS];
+
+export const FOOD_BY_ID: Record<string, Food> = Object.fromEntries(
+  ALL_FOODS.map((f) => [f.id, f])
+);
+
+/** Busca sem acento: "pao" acha "Pão". */
+export function normalize(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+/** Busca local: curadoria primeiro, depois TACO; filtro opcional por grupo. */
+export function searchLocalFoods(query: string, group: string): Food[] {
+  const q = normalize(query.trim());
+  return ALL_FOODS.filter(
+    (f) => (!group || f.group === group) && (!q || normalize(f.name).includes(q))
+  );
+}
 
 export const FOOD_GROUPS: FoodGroup[] = [
   "Básicos",

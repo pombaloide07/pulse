@@ -16,7 +16,7 @@ import type {
   Session,
   Workout,
 } from "./types";
-import { buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
+import { buildFreshState, buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
 import { todayISO } from "./dates";
 
 const STORAGE_KEY = "pulse-state-v1";
@@ -38,6 +38,7 @@ type Action =
   | { type: "DELETE_DISH"; id: string }
   | { type: "LOG_WEIGHT"; date: string; kg: number }
   | { type: "ADD_CHALLENGE"; challenge: Challenge }
+  | { type: "ONBOARD"; name: string }
   | { type: "HYDRATE"; state: AppState }
   | { type: "RESET" };
 
@@ -175,6 +176,10 @@ function reducer(state: AppState, action: Action): AppState {
     case "ADD_CHALLENGE": {
       if (state.challenges.some((c) => c.id === action.challenge.id)) return state;
       return { ...state, challenges: [...state.challenges, action.challenge] };
+    }
+    case "ONBOARD": {
+      // conta real começando do zero: nome da pessoa, sem dados de demonstração
+      return buildFreshState(action.name);
     }
     case "HYDRATE": {
       // estado vindo do sync (Supabase) — substitui o local se for válido

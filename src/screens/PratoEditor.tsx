@@ -167,6 +167,7 @@ export function PratoEditor() {
 
       {picking && (
         <FoodSearchSheet
+          localOnly
           onClose={() => setPicking(false)}
           onAdd={(food, grams) => {
             setDraft((d) =>

@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
-import { FOODS, FOOD_GROUPS } from "../lib/foods";
+import { FOOD_GROUPS, searchLocalFoods } from "../lib/foods";
 import type { Food, MealEntry } from "../lib/types";
 import {
   dayEntries,
@@ -285,26 +285,87 @@ export function Dieta() {
 
 /* ————— busca de alimento (usada também no editor de pratos) ————— */
 
+const LOCAL_RESULT_CAP = 80;
+
+/** Produtos embalados via Open Food Facts (instância BR, licença ODbL). */
+async function searchOpenFoodFacts(query: string, signal: AbortSignal): Promise<Food[]> {
+  const url =
+    "https://br.openfoodfacts.org/cgi/search.pl?action=process&json=1&search_simple=1" +
+    "&page_size=20&fields=code,product_name,product_name_pt,brands,nutriments" +
+    "&search_terms=" +
+    encodeURIComponent(query);
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`OFF ${res.status}`);
+  const data = await res.json();
+  const out: Food[] = [];
+  for (const p of data.products ?? []) {
+    const n = p.nutriments ?? {};
+    const kcal = n["energy-kcal_100g"];
+    if (typeof kcal !== "number" || !isFinite(kcal)) continue;
+    const name = (p.product_name_pt || p.product_name || "").trim();
+    if (!name) continue;
+    out.push({
+      id: `off-${p.code}`,
+      name: p.brands ? `${name} — ${String(p.brands).split(",")[0].trim()}` : name,
+      group: "Da vida real",
+      per100: {
+        kcal: Math.round(kcal),
+        prot: +(Number(n.proteins_100g) || 0).toFixed(1),
+        carb: +(Number(n.carbohydrates_100g) || 0).toFixed(1),
+        fat: +(Number(n.fat_100g) || 0).toFixed(1),
+      },
+    });
+  }
+  return out;
+}
+
 export function FoodSearchSheet({
   onClose,
   onAdd,
+  localOnly = false,
 }: {
   onClose: () => void;
   onAdd: (food: Food, grams: number) => void;
+  /** editor de pratos: só base local (ingredientes precisam existir no app) */
+  localOnly?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<string>("");
   const [picked, setPicked] = useState<Food | null>(null);
   const [grams, setGrams] = useState(100);
+  const [off, setOff] = useState<Food[] | null>(null);
+  const [offBusy, setOffBusy] = useState(false);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return FOODS.filter(
-      (f) =>
-        (!group || f.group === group) &&
-        (!q || f.name.toLowerCase().includes(q))
-    );
-  }, [query, group]);
+  const results = useMemo(() => searchLocalFoods(query, group), [query, group]);
+  const shown = results.slice(0, LOCAL_RESULT_CAP);
+
+  /* produtos embalados: busca remota com debounce, cancelando a anterior */
+  useEffect(() => {
+    if (localOnly || query.trim().length < 3) {
+      setOff(null);
+      setOffBusy(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setOffBusy(true);
+    const t = window.setTimeout(() => {
+      searchOpenFoodFacts(query.trim(), ctrl.signal)
+        .then((r) => {
+          setOff(r);
+          setOffBusy(false);
+        })
+        .catch((e) => {
+          if (e?.name !== "AbortError") {
+            setOff([]);
+            setOffBusy(false);
+          }
+        });
+    }, 500);
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(t);
+    };
+  }, [query, localOnly]);
 
   const pick = (f: Food) => {
     setPicked(f);
@@ -346,7 +407,7 @@ export function FoodSearchSheet({
               ))}
             </div>
             <ul className="picker-list">
-              {results.map((f) => (
+              {shown.map((f) => (
                 <li key={f.id}>
                   <button onClick={() => pick(f)}>
                     <span>
@@ -360,12 +421,44 @@ export function FoodSearchSheet({
                   </button>
                 </li>
               ))}
-              {results.length === 0 && (
+              {results.length > LOCAL_RESULT_CAP && (
+                <li className="picker-more">
+                  + {results.length - LOCAL_RESULT_CAP} na base local — digite pra refinar
+                </li>
+              )}
+
+              {!localOnly && (offBusy || (off && off.length > 0)) && (
+                <li className="picker-section">
+                  Produtos embalados · Open Food Facts{offBusy && " — buscando…"}
+                </li>
+              )}
+              {!localOnly &&
+                (off ?? []).map((f) => (
+                  <li key={f.id}>
+                    <button onClick={() => pick(f)}>
+                      <span>
+                        <b>{f.name}</b>
+                        <small>
+                          {Math.round(f.per100.kcal)} kcal ·{" "}
+                          {f.per100.prot.toFixed(1).replace(".", ",")}g prot /100g
+                        </small>
+                      </span>
+                      <IconPlus size={18} />
+                    </button>
+                  </li>
+                ))}
+
+              {results.length === 0 && !offBusy && (off?.length ?? 0) === 0 && (
                 <li className="picker-empty">
                   Não achei. Monte como um prato seu em "Meus pratos".
                 </li>
               )}
             </ul>
+            <p className="picker-attrib">
+              {localOnly
+                ? "Base local: sua curadoria + TACO (NEPA/Unicamp)."
+                : "Busca em ~640 alimentos brasileiros (TACO/NEPA-Unicamp) e milhões de produtos embalados (Open Food Facts, ODbL)."}
+            </p>
           </>
         ) : (
           <>

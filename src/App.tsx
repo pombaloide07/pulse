@@ -1,5 +1,7 @@
 import { Route, Routes } from "react-router-dom";
+import { useSync } from "./lib/sync";
 import { TabBar } from "./components/TabBar";
+import { Onboarding } from "./screens/Onboarding";
 import { Hoje } from "./screens/Hoje";
 import { Sessao } from "./screens/Sessao";
 import { Resumo } from "./screens/Resumo";
@@ -13,6 +15,9 @@ import { Corpo } from "./screens/Corpo";
 import { Grupo } from "./screens/Grupo";
 
 export function App() {
+  const { needsOnboarding } = useSync();
+  // conta nova logada: escolhe o nome antes de qualquer coisa
+  if (needsOnboarding) return <Onboarding />;
   return (
     <>
       <Routes>

@@ -398,6 +398,30 @@
   padding: 8px 0 12px;
 }
 
+.picker-section {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 14px 4px 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.picker-more {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  padding: 10px 4px;
+  font-style: italic;
+}
+
+.picker-attrib {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 10px 12px 2px;
+}
+
 /* toast */
 .toast {
   position: fixed;

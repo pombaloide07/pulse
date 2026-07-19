@@ -13,6 +13,7 @@ import { useStore } from "./store";
 import type { AppState, Challenge, Member } from "./types";
 import { addDays, toISO, todayISO } from "./dates";
 import { weeklyVolume } from "./logic";
+import { buildFreshState } from "./seed";
 
 export interface GroupInfo {
   id: string;
@@ -27,6 +28,9 @@ interface SyncValue {
   friends: Member[] | null;
   /** desafios do grupo real; null = carregando/offline */
   challenges: Challenge[] | null;
+  /** logado com conta nova (sem estado na nuvem) — precisa escolher o nome */
+  needsOnboarding: boolean;
+  onboard: (name: string) => Promise<void>;
   sendLink: (email: string) => Promise<string | null>;
   verifyCode: (email: string, code: string) => Promise<string | null>;
   createGroup: (name: string) => Promise<string | null>;
@@ -49,12 +53,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [friends, setFriends] = useState<Member[] | null>(null);
   const [challenges, setChallenges] = useState<Challenge[] | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
   const skipPushRef = useRef(false);
   const pushTimerRef = useRef<number>();
   const lastStatsRef = useRef<number | null>(null);
+  // só sincroniza o estado depois que a conta está decidida (hidratada ou onboarded);
+  // impede que o estado de demonstração vaze pra nuvem numa conta nova
+  const canPushRef = useRef(false);
 
   /* sessão */
   useEffect(() => {
@@ -69,17 +77,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setGroup(null);
       setFriends(null);
       setChallenges(null);
+      setNeedsOnboarding(false);
+      canPushRef.current = false;
       return;
     }
     let cancelled = false;
     (async () => {
       const uid = session.user.id;
-      const name = stateRef.current.userName || "Atleta";
-      await supabase.from("profiles").upsert(
-        { id: uid, name, initials: initialsOf(name) },
-        { onConflict: "id" }
-      );
-
       // cadeia do grupo e estado remoto são independentes — em paralelo
       const [groupInfo, remote] = await Promise.all([
         (async () => {
@@ -101,10 +105,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (groupInfo) setGroup(groupInfo);
       if (remote.data?.state) {
+        // conta existente: traz o estado da nuvem
         skipPushRef.current = true;
+        canPushRef.current = true;
         dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
+        setNeedsOnboarding(false);
       } else {
-        await supabase.from("states").insert({ user_id: uid, state: stateRef.current });
+        // conta nova: NÃO empurra o estado demo nem grava o nome "Pedro" do seed —
+        // espera o onboarding escolher o nome e criar o estado limpo
+        setNeedsOnboarding(true);
       }
     })();
     return () => {
@@ -213,7 +222,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   /* estado local → nuvem (debounce; last-write-wins) + stats agregadas */
   useEffect(() => {
-    if (!session) return;
+    if (!session || !canPushRef.current) return;
     if (skipPushRef.current) {
       skipPushRef.current = false;
       return;
@@ -246,6 +255,29 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }, 2500);
     return () => window.clearTimeout(pushTimerRef.current);
   }, [state, session]);
+
+  /* onboarding: conta nova escolhe o nome e nasce limpa (sem dados de demo) */
+  const onboard = useCallback(
+    async (name: string) => {
+      if (!session) return;
+      const clean = name.trim() || "Atleta";
+      const fresh = buildFreshState(clean);
+      dispatch({ type: "ONBOARD", name: clean });
+      canPushRef.current = true;
+      setNeedsOnboarding(false);
+      const uid = session.user.id;
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .upsert({ id: uid, name: clean, initials: initialsOf(clean) }, { onConflict: "id" }),
+        supabase.from("states").upsert(
+          { user_id: uid, state: fresh, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        ),
+      ]);
+    },
+    [session, dispatch]
+  );
 
   /* ações de auth e grupo */
   const sendLink = useCallback(async (email: string) => {
@@ -320,6 +352,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         group,
         friends,
         challenges,
+        needsOnboarding,
+        onboard,
         sendLink,
         verifyCode,
         createGroup,

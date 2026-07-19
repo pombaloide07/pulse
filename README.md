@@ -29,9 +29,15 @@ Pra resetar a demo: limpe os dados do site no navegador (ou `localStorage.remove
 
 **Fase 2 — Dieta + Corpo**
 
-- **Dieta** — proteína como métrica-herói; **Meus Pratos** (marmita definida uma vez, registrada em um toque), repetir ontem, busca em ~50 alimentos brasileiros (valores aproximados da TACO), refeições do dia e o padrão de 7/28 dias com linha de meta.
+- **Dieta** — proteína como métrica-herói; **Meus Pratos** (marmita definida uma vez, registrada em um toque), repetir ontem, busca em **~640 alimentos brasileiros** (curadoria com porções + **TACO completa** embutida, busca sem acento) e em **milhões de produtos embalados** via Open Food Facts (instância BR, ODbL, com atribuição), refeições do dia e o padrão de 7/28 dias com linha de meta.
 - **Metas & calculadora** — Mifflin-St Jeor (TMB/GET), bulking com superávit moderado / cutting / manutenção, metas ajustáveis na mão, piso calórico com aviso e **modo só proteína** (§11).
 - **Corpo** — registro de peso em dois toques e a **leitura do loop**: comida × peso × carga das últimas 4 semanas numa frase honesta e gentil. Peso privado por padrão.
+
+**Onboarding**
+
+- Primeiro login de conta nova: escolhe o nome e o app nasce limpo — plano A/B/C e
+  pratos padrão como ponto de partida, zero dados de demonstração (o demo existe só
+  pra quem navega deslogado). O estado demo nunca sobe pra nuvem.
 
 **Backend (Supabase)**
 
@@ -69,7 +75,10 @@ de demonstração).
 
 - **Código**: [github.com/pombaloide07/pulse](https://github.com/pombaloide07/pulse) (público).
 - **Produção**: `https://pulse-pedro-budgets.vercel.app` — o build da Vercel clona o
-  repo (`git clone … && npm install && npm run build`, output `repo/dist`).
+  repo (`rm -rf repo && git clone … && npm install && npm run build`, output `repo/dist`).
+  O `rm -rf` importa: a Vercel cacheia o diretório de build entre deploys e o clone
+  falha se a pasta anterior voltar do cache. Pra redeployar: novo deploy do projeto
+  `pulse` com essas mesmas settings (ele sempre builda o `main` mais recente).
 - O auth do Supabase (site_url + allowlist) já aponta pra URL de produção e pro
   localhost de dev.
 

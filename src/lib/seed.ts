@@ -1,5 +1,6 @@
 import type {
   AppState,
+  Challenge,
   Dish,
   MealEntry,
   Member,
@@ -129,10 +130,10 @@ function makeHistory(workouts: Workout[], weeks: number, rnd: () => number): Ses
 /** Presença dos amigos: padrões semanais fixos + ruído determinístico. */
 function makeFriends(weeks: number, rnd: () => number): Member[] {
   const friends = [
-    { id: "m-lucas", name: "Lucas", initials: "LU", color: "#2f6b52", days: [0, 1, 3, 4], today: true },
-    { id: "m-matheus", name: "Matheus", initials: "MA", color: "#d9950f", days: [0, 2, 4], today: false },
-    { id: "m-rafa", name: "Rafa", initials: "RA", color: "#4f7fa3", days: [0, 1, 2, 3, 4], today: true },
-    { id: "m-joao", name: "João", initials: "JO", color: "#a05fa3", days: [1, 3], today: false },
+    { id: "m-lucas", name: "Lucas", initials: "LU", color: "#2f6b52", days: [0, 1, 3, 4], today: true, volumePct: 8 },
+    { id: "m-matheus", name: "Matheus", initials: "MA", color: "#d9950f", days: [0, 2, 4], today: false, volumePct: 3 },
+    { id: "m-rafa", name: "Rafa", initials: "RA", color: "#4f7fa3", days: [0, 1, 2, 3, 4], today: true, volumePct: 12 },
+    { id: "m-joao", name: "João", initials: "JO", color: "#a05fa3", days: [1, 3], today: false, volumePct: 0 },
   ];
   const today = new Date();
   const monday = new Date(today);
@@ -151,7 +152,15 @@ function makeFriends(weeks: number, rnd: () => number): Member[] {
       }
     }
     if (f.today && !presence.includes(todayIso)) presence.push(todayIso);
-    return { id: f.id, name: f.name, initials: f.initials, color: f.color, isMe: false, presence };
+    return {
+      id: f.id,
+      name: f.name,
+      initials: f.initials,
+      color: f.color,
+      isMe: false,
+      presence,
+      stats: { volumePct: f.volumePct },
+    };
   });
 }
 
@@ -309,11 +318,48 @@ function buildPhase2(trainingDates: Set<string>): Phase2Data {
   };
 }
 
+/* ————— fase 3: desafio de demonstração ————— */
+
+function buildSeedChallenge(): Challenge {
+  const today = new Date();
+  const start = addDays(today, -11);
+  const end = addDays(start, 29); // 30 dias, inclusivo
+  return {
+    id: "c-desafio-30",
+    name: "Desafio dos 30",
+    startsOn: toISO(start),
+    endsOn: toISO(end),
+  };
+}
+
+type StateV1 = Omit<AppState, "profile" | "dishes" | "meals" | "weights" | "challenges">;
+type StateV2 = Omit<AppState, "challenges">;
+
 /** Migra um estado v1 (Fase 1) preservando treinos e presença do usuário. */
-export function migrateV1toV2(v1: Omit<AppState, "profile" | "dishes" | "meals" | "weights">): AppState {
+export function migrateV1toV2(v1: StateV1): StateV2 {
   const me = v1.members.find((m) => m.isMe);
   const phase2 = buildPhase2(new Set(me?.presence ?? []));
   return { ...v1, ...phase2, version: 2 };
+}
+
+/** v2 → v3: entra o desafio (Fase 3) e as stats dos amigos de demonstração. */
+export function migrateV2toV3(v2: StateV2): AppState {
+  const demoStats: Record<string, number> = {
+    "m-lucas": 8,
+    "m-matheus": 3,
+    "m-rafa": 12,
+    "m-joao": 0,
+  };
+  return {
+    ...v2,
+    members: v2.members.map((m) =>
+      m.stats === undefined && demoStats[m.id] !== undefined
+        ? { ...m, stats: { volumePct: demoStats[m.id] } }
+        : m
+    ),
+    challenges: [buildSeedChallenge()],
+    version: 3,
+  };
 }
 
 export function buildSeedState(): AppState {
@@ -331,12 +377,13 @@ export function buildSeedState(): AppState {
   };
   const phase2 = buildPhase2(new Set(me.presence));
   return {
-    version: 2,
+    version: 3,
     userName: "Pedro",
     workouts,
     sessions,
     members: [me, ...makeFriends(weeks, rnd)],
     activeSessionId: null,
     ...phase2,
+    challenges: [buildSeedChallenge()],
   };
 }

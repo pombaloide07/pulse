@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   AppState,
+  Challenge,
   Dish,
   MealEntry,
   PlanItem,
@@ -15,7 +16,7 @@ import type {
   Session,
   Workout,
 } from "./types";
-import { buildSeedState, migrateV1toV2 } from "./seed";
+import { buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
 import { todayISO } from "./dates";
 
 const STORAGE_KEY = "pulse-state-v1";
@@ -36,6 +37,7 @@ type Action =
   | { type: "UPDATE_DISH"; dish: Dish }
   | { type: "DELETE_DISH"; id: string }
   | { type: "LOG_WEIGHT"; date: string; kg: number }
+  | { type: "ADD_CHALLENGE"; challenge: Challenge }
   | { type: "HYDRATE"; state: AppState }
   | { type: "RESET" };
 
@@ -170,9 +172,15 @@ function reducer(state: AppState, action: Action): AppState {
       const others = state.weights.filter((w) => w.date !== action.date);
       return { ...state, weights: [...others, { date: action.date, kg: action.kg }] };
     }
+    case "ADD_CHALLENGE": {
+      if (state.challenges.some((c) => c.id === action.challenge.id)) return state;
+      return { ...state, challenges: [...state.challenges, action.challenge] };
+    }
     case "HYDRATE": {
       // estado vindo do sync (Supabase) — substitui o local se for válido
-      return action.state?.version === 2 ? action.state : state;
+      if (action.state?.version === 3) return action.state;
+      if (action.state?.version === 2) return migrateV2toV3(action.state);
+      return state;
     }
     case "RESET":
       return buildSeedState();
@@ -186,8 +194,9 @@ function loadInitial(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
-      if (parsed.version === 2) return parsed;
-      if (parsed.version === 1) return migrateV1toV2(parsed);
+      if (parsed.version === 3) return parsed;
+      if (parsed.version === 2) return migrateV2toV3(parsed);
+      if (parsed.version === 1) return migrateV2toV3(migrateV1toV2(parsed));
     }
   } catch {
     /* seed abaixo */

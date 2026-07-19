@@ -62,6 +62,8 @@ export interface Member {
   isMe: boolean;
   /** datas ISO em que treinou */
   presence: string[];
+  /** agregados inofensivos que o grupo pode ver (§11: nunca peso/foto) */
+  stats?: { volumePct?: number };
 }
 
 /* ————— Fase 2: dieta e corpo ————— */
@@ -141,6 +143,21 @@ export interface WeightEntry {
   kg: number;
 }
 
+/* ————— Fase 3: desafios ————— */
+
+/**
+ * Desafio estilo GymRats: prazo + grupo + check-in (PRD §7.4).
+ * O check-in é a presença: concluiu treino no dia, pontuou.
+ */
+export interface Challenge {
+  id: string;
+  name: string;
+  /** ISO yyyy-mm-dd, inclusivo */
+  startsOn: string;
+  endsOn: string;
+  createdBy?: string;
+}
+
 export interface AppState {
   version: number;
   userName: string;
@@ -154,4 +171,6 @@ export interface AppState {
   dishes: Dish[];
   meals: MealEntry[];
   weights: WeightEntry[];
+  /* fase 3 */
+  challenges: Challenge[];
 }

@@ -1,4 +1,4 @@
-import type { AppState, Member, Session, Workout } from "./types";
+import type { AppState, Challenge, Member, Session, Workout } from "./types";
 import { EXERCISE_BY_ID } from "./exercises";
 import { currentWeekISO, diffDays, fromISO, mondayOf, toISO, todayISO } from "./dates";
 
@@ -229,4 +229,81 @@ export function weekStreak(member: Member): number {
 
 export function sessionsThisWeek(member: Member): number {
   return weekPresence(member).filter(Boolean).length;
+}
+
+/* ————— desafios (Fase 3) ————— */
+
+export interface ChallengeStanding {
+  member: Member;
+  /** dias com presença dentro do prazo */
+  checkins: number;
+  /** 1-based; empates dividem a posição */
+  rank: number;
+}
+
+export interface ChallengeView {
+  challenge: Challenge;
+  totalDays: number;
+  /** dia corrente do desafio, 1..totalDays */
+  dayNumber: number;
+  ended: boolean;
+  standings: ChallengeStanding[];
+  champions: Member[];
+}
+
+/**
+ * Check-in = presença: concluir treino num dia do prazo pontua aquele dia.
+ * Ranking por contagem — presença, nunca corpo (§11).
+ */
+export function readChallenge(
+  challenge: Challenge,
+  members: Member[],
+  today = todayISO()
+): ChallengeView {
+  const totalDays = diffDays(challenge.endsOn, challenge.startsOn) + 1;
+  const ended = today > challenge.endsOn;
+  const cursor = ended ? challenge.endsOn : today;
+  const dayNumber = Math.min(
+    totalDays,
+    Math.max(1, diffDays(cursor, challenge.startsOn) + 1)
+  );
+
+  const counted = members.map((member) => ({
+    member,
+    checkins: new Set(
+      member.presence.filter((d) => d >= challenge.startsOn && d <= cursor)
+    ).size,
+  }));
+  counted.sort(
+    (a, b) => b.checkins - a.checkins || a.member.name.localeCompare(b.member.name)
+  );
+
+  let lastRank = 1;
+  const standings: ChallengeStanding[] = counted.map((c, i) => {
+    if (i === 0 || counted[i - 1].checkins !== c.checkins) lastRank = i + 1;
+    return { ...c, rank: lastRank };
+  });
+
+  const top = standings[0]?.checkins ?? 0;
+  return {
+    challenge,
+    totalDays,
+    dayNumber,
+    ended,
+    standings,
+    champions: ended && top > 0
+      ? standings.filter((s) => s.checkins === top).map((s) => s.member)
+      : [],
+  };
+}
+
+/** O desafio em andamento (ou o mais recente, se todos encerraram). */
+export function currentChallenge(challenges: Challenge[]): Challenge | null {
+  if (!challenges.length) return null;
+  const today = todayISO();
+  const active = challenges
+    .filter((c) => c.startsOn <= today && today <= c.endsOn)
+    .sort((a, b) => (a.startsOn < b.startsOn ? 1 : -1));
+  if (active.length) return active[0];
+  return [...challenges].sort((a, b) => (a.endsOn < b.endsOn ? 1 : -1))[0];
 }

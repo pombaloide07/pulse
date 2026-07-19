@@ -1,0 +1,160 @@
+.prato-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pe-icons {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 2px;
+}
+
+.pe-icons::-webkit-scrollbar {
+  display: none;
+}
+
+.pe-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1.5px solid var(--line-soft);
+  flex-shrink: 0;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.pe-icon:active {
+  transform: scale(0.92);
+}
+
+.pe-icon-on {
+  border-color: var(--pulse);
+  background: var(--pulse-soft);
+}
+
+.pe-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 15px 10px;
+  text-align: center;
+}
+
+.pe-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pe-summary b {
+  font-size: 19px;
+  font-weight: 620;
+}
+
+.pe-summary small {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.pe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.pe-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 13px;
+}
+
+.pe-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pe-item-info b {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pe-item-info small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.pe-qty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--paper);
+  border-radius: var(--r-pill);
+  padding: 3px;
+}
+
+.pe-qty button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+}
+
+.pe-qty button:active {
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+}
+
+.pe-qty span {
+  min-width: 44px;
+  text-align: center;
+  font-size: 14.5px;
+  font-weight: 620;
+}
+
+.pe-remove {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+}
+
+.pe-remove:active {
+  color: var(--pulse-deep);
+  background: var(--pulse-soft);
+}
+
+.pe-empty {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  padding: 8px 4px;
+}
+
+.pe-delete {
+  align-self: center;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 10px;
+}

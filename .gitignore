@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# contém access token da conta Supabase — nunca commitar
+.mcp.json
+.env
+.env.*

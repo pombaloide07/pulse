@@ -1,0 +1,247 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-head {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-top: 8px;
+}
+
+.editor-back {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+
+.editor-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-name {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 560;
+  color: var(--ink);
+  padding: 2px 0;
+  border-bottom: 1.5px dashed transparent;
+}
+
+.editor-name:focus {
+  outline: none;
+  border-bottom-color: var(--pulse);
+}
+
+.editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editor-item {
+  padding: 16px;
+}
+
+.editor-item > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.editor-item h2 {
+  font-size: 17.5px;
+  font-weight: 580;
+}
+
+.editor-item header p {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.editor-remove {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  background: var(--paper);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.editor-remove:active {
+  color: var(--pulse-deep);
+  background: var(--pulse-soft);
+}
+
+.editor-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 9px 6px;
+}
+
+.field-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.field-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-ctrl b {
+  min-width: 34px;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.field-ctrl button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-3);
+}
+
+.field-ctrl button:active {
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+}
+
+/* picker sheet */
+.picker {
+  max-height: 82dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.picker-head button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
+.picker-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 0 10px;
+  scrollbar-width: none;
+}
+
+.picker-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.pf {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.pf-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.picker-list {
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.picker-list li button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 4px;
+  border-bottom: 1px dashed var(--line-soft);
+  text-align: left;
+  color: var(--ink-3);
+}
+
+.picker-list li button:active {
+  background: var(--card-warm);
+}
+
+.picker-list span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.picker-list b {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.picker-list small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.picker-empty {
+  padding: 18px 4px;
+  color: var(--ink-3);
+  font-size: 14px;
+}

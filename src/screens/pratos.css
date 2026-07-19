@@ -1,0 +1,51 @@
+.pratos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pratos-title {
+  font-size: 24px;
+}
+
+.pratos-sub {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 0 4px;
+  max-width: 38ch;
+}
+
+.prato-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  text-align: left;
+  color: var(--ink-3);
+}
+
+.prato-card:active {
+  transform: scale(0.985);
+}
+
+.prato-icon {
+  font-size: 27px;
+}
+
+.prato-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.prato-info b {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.prato-info small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}

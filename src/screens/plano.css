@@ -1,0 +1,74 @@
+.plano {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plano-sub {
+  font-size: 14px;
+  color: var(--ink-2);
+  max-width: 34ch;
+  padding: 0 4px;
+}
+
+.plano-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  text-align: left;
+  color: var(--ink-3);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.plano-card:active {
+  transform: scale(0.985);
+}
+
+.plano-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 25px;
+  font-style: italic;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.plano-card:nth-of-type(2) .plano-letter {
+  background: var(--pulse);
+}
+
+.plano-card:nth-of-type(3) .plano-letter {
+  background: var(--mata);
+}
+
+.plano-card:nth-of-type(4) .plano-letter {
+  background: var(--ambar);
+}
+
+.plano-info {
+  flex: 1;
+}
+
+.plano-info h2 {
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.plano-info > p {
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.plano-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+}

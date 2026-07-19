@@ -1,0 +1,424 @@
+.dieta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dieta-head {
+  padding: 26px 4px 0;
+}
+
+.dieta-head h1 {
+  font-size: 38px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+/* hero */
+.dieta-hero {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dh-prot {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+}
+
+.dh-num {
+  font-size: 46px;
+  font-weight: 560;
+  line-height: 1;
+  color: var(--pulse-deep);
+}
+
+.dh-num small {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.dh-prot-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.dh-prot-info b {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.dh-prot-info span {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.dh-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--paper-deep);
+  overflow: hidden;
+}
+
+.dh-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--pulse), var(--ambar));
+  transition: width 0.4s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+
+.dh-kcal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+
+.dh-kcal b {
+  font-size: 17px;
+}
+
+.dh-macros {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.dh-bar-kcal {
+  height: 5px;
+}
+
+.dh-bar-kcal span {
+  background: var(--ink-2);
+  opacity: 0.65;
+}
+
+.dh-hidden-note {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-style: italic;
+  font-family: var(--serif);
+}
+
+/* registrar rápido */
+.dieta-label {
+  padding: 0 4px 9px;
+}
+
+.dish-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.dish-row::-webkit-scrollbar {
+  display: none;
+}
+
+.dish-card {
+  flex: 0 0 128px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  transition: transform 0.15s ease;
+}
+
+.dish-card:active {
+  transform: scale(0.96);
+}
+
+.dish-icon {
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+
+.dish-card b {
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.dish-card small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.dieta-quick {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dq-pill {
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  border: 1.5px dashed var(--line);
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.dq-pill:active {
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+}
+
+.dq-pill:disabled {
+  opacity: 0.45;
+}
+
+/* refeições de hoje */
+.dieta-today {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dieta-today ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.dieta-today li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line-soft);
+}
+
+.dieta-today li:last-child {
+  border-bottom: none;
+}
+
+.de-time {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-style: italic;
+  min-width: 44px;
+}
+
+.de-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.de-info b {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.de-info small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.de-x {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  background: var(--paper);
+}
+
+.de-x:active {
+  color: var(--pulse-deep);
+  background: var(--pulse-soft);
+}
+
+.dieta-empty {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* acompanhamento */
+.dieta-track {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.dt-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.dt-tile {
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 11px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.dt-tile b {
+  font-size: 20px;
+  font-weight: 620;
+}
+
+.dt-tile small {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dieta-note {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-style: italic;
+  font-family: var(--serif);
+  text-align: center;
+}
+
+/* links */
+.dieta-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dieta-link {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 16px;
+  text-align: left;
+  color: var(--ink-3);
+}
+
+.dieta-link:active {
+  transform: scale(0.985);
+}
+
+.dieta-link > span {
+  font-size: 23px;
+}
+
+.dieta-link div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dieta-link b {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.dieta-link small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* busca */
+.food-search {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line);
+  background: var(--paper);
+  font-size: 15px;
+  margin: 6px 0 4px;
+}
+
+.food-search:focus {
+  outline: none;
+  border-color: var(--pulse);
+}
+
+.food-qty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 0 4px;
+}
+
+.food-qty button {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+.food-qty button:active {
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+}
+
+.food-qty span b {
+  font-size: 40px;
+  font-weight: 560;
+}
+
+.food-qty span small {
+  font-size: 18px;
+  color: var(--ink-3);
+}
+
+.food-hint {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.food-macros {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 8px 0 12px;
+}
+
+/* toast */
+.toast {
+  position: fixed;
+  bottom: calc(var(--tabbar-h) + 18px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-float);
+  z-index: 90;
+  white-space: nowrap;
+  animation: toast-in 0.3s cubic-bezier(0.3, 1.2, 0.5, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    transform: translate(-50%, 14px);
+    opacity: 0;
+  }
+}

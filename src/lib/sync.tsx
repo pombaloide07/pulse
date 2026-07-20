@@ -54,6 +54,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<Member[] | null>(null);
   const [challenges, setChallenges] = useState<Challenge[] | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // incrementa quando a rede volta, pra re-rodar o bootstrap (offline → online)
+  const [reconnectTick, setReconnectTick] = useState(0);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -63,12 +65,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // só sincroniza o estado depois que a conta está decidida (hidratada ou onboarded);
   // impede que o estado de demonstração vaze pra nuvem numa conta nova
   const canPushRef = useRef(false);
+  // hidrata da nuvem só UMA vez por login; refresh de token não re-hidrata
+  // (senão sobrescreveria edições locais recentes com o snapshot do servidor)
+  const hydratedUidRef = useRef<string | null>(null);
 
   /* sessão */
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  /* rede voltou: re-roda o bootstrap (reativa sync/grupo se abriu offline) */
+  useEffect(() => {
+    const onOnline = () => setReconnectTick((n) => n + 1);
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, []);
 
   /* bootstrap pós-login: perfil, grupo e estado remoto */
@@ -79,6 +91,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setChallenges(null);
       setNeedsOnboarding(false);
       canPushRef.current = false;
+      hydratedUidRef.current = null;
       return;
     }
     let cancelled = false;
@@ -95,11 +108,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         // Sem status = erro de rede/offline → mantém a sessão (app é local-first).
         if (status === 401 || status === 403) {
           await supabase.auth.signOut();
+          dispatch({ type: "RESET" }); // apaga dados privados órfãos → volta ao demo
         }
         return;
       }
       if (!u?.user) {
         await supabase.auth.signOut();
+        dispatch({ type: "RESET" });
         return;
       }
 
@@ -129,10 +144,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (remote.data?.state) {
-        // conta existente: traz o estado da nuvem
-        skipPushRef.current = true;
+        // conta existente: libera o sync e traz o estado da nuvem UMA vez por login.
+        // Em refreshes de token (mesmo uid) não re-hidrata — preserva edições locais.
         canPushRef.current = true;
-        dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
+        if (hydratedUidRef.current !== uid) {
+          hydratedUidRef.current = uid;
+          skipPushRef.current = true;
+          dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
+        }
         setNeedsOnboarding(false);
       } else {
         // conta nova (query ok, sem linha): NÃO empurra o estado demo nem grava
@@ -143,7 +162,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [session, dispatch]);
+  }, [session, dispatch, reconnectTick]);
 
   /* membros do grupo + desafios + realtime */
   const loadFriends = useCallback(async () => {
@@ -367,13 +386,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     canPushRef.current = false;
     skipPushRef.current = false;
     lastStatsRef.current = null;
+    hydratedUidRef.current = null;
     window.clearTimeout(pushTimerRef.current);
     await supabase.auth.signOut();
     setGroup(null);
     setFriends(null);
     setChallenges(null);
     setNeedsOnboarding(false);
-  }, []);
+    // volta ao demo e apaga os dados privados do store/localStorage — senão
+    // ficariam visíveis (e disponíveis pro próximo) sob o rótulo "Modo demo"
+    dispatch({ type: "RESET" });
+  }, [dispatch]);
 
   return (
     <SyncCtx.Provider

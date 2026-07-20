@@ -186,6 +186,9 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <>
+      {/* esconde o sheet de conta enquanto um sub-sheet (login/grupo) está aberto,
+          pra não empilhar dois backdrops full-screen no mesmo portal-root */}
+      {sub === null && (
       <Portal>
         <div className="sheet-backdrop" onClick={onClose}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -252,9 +255,11 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </Portal>
+      )}
 
-      {sub === "login" && <LoginSheet onClose={() => setSub(null)} />}
-      {sub === "grupo" && <GroupSheet onClose={() => setSub(null)} />}
+      {/* sub-sheets atados à sessão: se ela cair por baixo, desmontam junto */}
+      {!sync.session && sub === "login" && <LoginSheet onClose={() => setSub(null)} />}
+      {sync.session && sub === "grupo" && <GroupSheet onClose={() => setSub(null)} />}
     </>
   );
 }

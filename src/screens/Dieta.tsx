@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { FOOD_GROUPS, searchLocalFoods } from "../lib/foods";
+import { Portal } from "../components/Portal";
 import type { Food, MealEntry } from "../lib/types";
 import {
   dayEntries,
@@ -278,7 +279,11 @@ export function Dieta() {
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <Portal>
+          <div className="toast">{toast}</div>
+        </Portal>
+      )}
     </main>
   );
 }
@@ -375,6 +380,7 @@ export function FoodSearchSheet({
   const step = picked?.unitGrams && picked.unitGrams <= 50 ? picked.unitGrams : 25;
 
   return (
+    <Portal>
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet picker" onClick={(e) => e.stopPropagation()}>
         {!picked ? (
@@ -498,5 +504,6 @@ export function FoodSearchSheet({
         )}
       </div>
     </div>
+    </Portal>
   );
 }

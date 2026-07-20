@@ -84,6 +84,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       const uid = session.user.id;
+
+      // valida o token no servidor: uma sessão órfã (usuário deletado) fica no
+      // localStorage e travaria o app. getUser() bate no servidor de verdade.
+      const { data: u, error: uErr } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (uErr) {
+        const status = (uErr as { status?: number }).status;
+        // 401/403 = token inválido/usuário sumiu → desloga limpo (cai no demo).
+        // Sem status = erro de rede/offline → mantém a sessão (app é local-first).
+        if (status === 401 || status === 403) {
+          await supabase.auth.signOut();
+        }
+        return;
+      }
+      if (!u?.user) {
+        await supabase.auth.signOut();
+        return;
+      }
+
       // cadeia do grupo e estado remoto são independentes — em paralelo
       const [groupInfo, remote] = await Promise.all([
         (async () => {
@@ -104,6 +123,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
       if (groupInfo) setGroup(groupInfo);
+      if (remote.error) {
+        // erro de rede (offline): mantém o estado local, não força onboarding
+        // nem push — o app é local-first e re-hidrata quando reabrir online
+        return;
+      }
       if (remote.data?.state) {
         // conta existente: traz o estado da nuvem
         skipPushRef.current = true;
@@ -111,8 +135,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
         setNeedsOnboarding(false);
       } else {
-        // conta nova: NÃO empurra o estado demo nem grava o nome "Pedro" do seed —
-        // espera o onboarding escolher o nome e criar o estado limpo
+        // conta nova (query ok, sem linha): NÃO empurra o estado demo nem grava
+        // o nome do seed — espera o onboarding escolher o nome e criar o limpo
         setNeedsOnboarding(true);
       }
     })();
@@ -339,10 +363,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // zera os refs de sync antes de sair: evita push residual com token morto
+    canPushRef.current = false;
+    skipPushRef.current = false;
+    lastStatsRef.current = null;
+    window.clearTimeout(pushTimerRef.current);
     await supabase.auth.signOut();
     setGroup(null);
     setFriends(null);
     setChallenges(null);
+    setNeedsOnboarding(false);
   }, []);
 
   return (

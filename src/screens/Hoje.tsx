@@ -13,6 +13,7 @@ import { EXERCISE_BY_ID } from "../lib/exercises";
 import { dayTotals } from "../lib/nutrition";
 import { Avatar, BigButton, Chip, WeekStrip } from "../components/ui";
 import { IconCheck, IconChevronRight, IconDiet, IconPulse } from "../components/icons";
+import { HeaderAccount } from "../components/account";
 import "./hoje.css";
 
 export function Hoje() {
@@ -60,11 +61,14 @@ export function Hoje() {
       <div className="aurora" aria-hidden />
 
       <header className="hoje-head rise">
-        <p className="eyebrow">{formatLong(new Date())}</p>
-        <h1>
-          {greeting()},<br />
-          <em>{state.userName}.</em>
-        </h1>
+        <div className="hoje-head-text">
+          <p className="eyebrow">{formatLong(new Date())}</p>
+          <h1>
+            {greeting()},<br />
+            <em>{state.userName}.</em>
+          </h1>
+        </div>
+        <HeaderAccount />
       </header>
 
       <section className="card week-card rise">

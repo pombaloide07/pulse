@@ -151,6 +151,15 @@
   max-height: 82dvh;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+}
+
+/* no picker, só a lista rola; o resto fica fixo */
+.picker > .picker-head,
+.picker > .food-search,
+.picker > .picker-filters,
+.picker > .picker-attrib {
+  flex: 0 0 auto;
 }
 
 .picker-head {
@@ -203,6 +212,10 @@
 .picker-list {
   list-style: none;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }

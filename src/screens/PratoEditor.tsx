@@ -5,6 +5,7 @@ import { FOOD_BY_ID } from "../lib/foods";
 import type { Dish } from "../lib/types";
 import { dishMacros } from "../lib/nutrition";
 import { FoodSearchSheet } from "./Dieta";
+import { Portal } from "../components/Portal";
 import { IconBack, IconMinus, IconPlus, IconTrash } from "../components/icons";
 import { BigButton } from "../components/ui";
 import "./pratoeditor.css";
@@ -186,24 +187,26 @@ export function PratoEditor() {
       )}
 
       {confirmDelete && (
-        <div className="sheet-backdrop" onClick={() => setConfirmDelete(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <h2>Excluir "{draft.name}"?</h2>
-            <p>O que já foi registrado com ele continua no histórico.</p>
-            <BigButton
-              onClick={() => {
-                dispatch({ type: "DELETE_DISH", id: draft.id });
-                navigate("/dieta/pratos");
-              }}
-              tone="pulse"
-            >
-              Excluir
-            </BigButton>
-            <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
-              Cancelar
-            </BigButton>
+        <Portal>
+          <div className="sheet-backdrop" onClick={() => setConfirmDelete(false)}>
+            <div className="sheet" onClick={(e) => e.stopPropagation()}>
+              <h2>Excluir "{draft.name}"?</h2>
+              <p>O que já foi registrado com ele continua no histórico.</p>
+              <BigButton
+                onClick={() => {
+                  dispatch({ type: "DELETE_DISH", id: draft.id });
+                  navigate("/dieta/pratos");
+                }}
+                tone="pulse"
+              >
+                Excluir
+              </BigButton>
+              <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
+                Cancelar
+              </BigButton>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </main>
   );

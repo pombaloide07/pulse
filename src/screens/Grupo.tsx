@@ -12,6 +12,8 @@ import {
 import type { Member } from "../lib/types";
 import { Avatar, BigButton, Chip } from "../components/ui";
 import { IconCheck, IconMedal, IconPlus, IconUp, IconX } from "../components/icons";
+import { LoginSheet, GroupSheet } from "../components/account";
+import { Portal } from "../components/Portal";
 import { WEEKDAY_LETTERS, addDays, toISO, todayISO } from "../lib/dates";
 import "./grupo.css";
 
@@ -265,41 +267,43 @@ function DesafioSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <header className="picker-head">
-          <h2>Novo desafio</h2>
-          <button onClick={onClose} aria-label="Fechar">
-            <IconX />
-          </button>
-        </header>
-        <p className="conn-note">
-          Prazo fechado, grupo fechado, um check-in por dia de treino. Simples assim.
-        </p>
-        <input
-          className="food-search"
-          placeholder="Desafio dos 30"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoFocus
-        />
-        <div className="desafio-days">
-          {[15, 30, 45].map((d) => (
-            <button
-              key={d}
-              className={`pf ${days === d ? "pf-on" : ""}`}
-              onClick={() => setDays(d)}
-            >
-              {d} dias
+    <Portal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <header className="picker-head">
+            <h2>Novo desafio</h2>
+            <button onClick={onClose} aria-label="Fechar">
+              <IconX />
             </button>
-          ))}
+          </header>
+          <p className="conn-note">
+            Prazo fechado, grupo fechado, um check-in por dia de treino. Simples assim.
+          </p>
+          <input
+            className="food-search"
+            placeholder="Desafio dos 30"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+          <div className="desafio-days">
+            {[15, 30, 45].map((d) => (
+              <button
+                key={d}
+                className={`pf ${days === d ? "pf-on" : ""}`}
+                onClick={() => setDays(d)}
+              >
+                {d} dias
+              </button>
+            ))}
+          </div>
+          {error && <p className="conn-error">{error}</p>}
+          <BigButton onClick={submit} tone="pulse" disabled={busy || name.trim().length < 2}>
+            {busy ? "Criando…" : "Começar desafio"}
+          </BigButton>
         </div>
-        {error && <p className="conn-error">{error}</p>}
-        <BigButton onClick={submit} tone="pulse" disabled={busy || name.trim().length < 2}>
-          {busy ? "Criando…" : "Começar desafio"}
-        </BigButton>
       </div>
-    </div>
+    </Portal>
   );
 }
 
@@ -355,141 +359,3 @@ function ConnectionCard() {
   );
 }
 
-function LoginSheet({ onClose }: { onClose: () => void }) {
-  const sync = useSync();
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const send = async () => {
-    setBusy(true);
-    setError(null);
-    const err = await sync.sendLink(email.trim());
-    setBusy(false);
-    if (err) setError(err);
-    else setSent(true);
-  };
-
-  const verify = async () => {
-    setBusy(true);
-    setError(null);
-    const err = await sync.verifyCode(email.trim(), code);
-    setBusy(false);
-    if (err) setError(err);
-    else onClose();
-  };
-
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <header className="picker-head">
-          <h2>Entrar</h2>
-          <button onClick={onClose} aria-label="Fechar">
-            <IconX />
-          </button>
-        </header>
-        {!sent ? (
-          <>
-            <p className="conn-note">
-              Te mando um link mágico por e-mail. Abre ele neste mesmo navegador e pronto.
-            </p>
-            <input
-              className="food-search"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-            {error && <p className="conn-error">{error}</p>}
-            <BigButton onClick={send} tone="pulse" disabled={busy || !email.includes("@")}>
-              {busy ? "Enviando…" : "Enviar link"}
-            </BigButton>
-          </>
-        ) : (
-          <>
-            <p className="conn-note">
-              Enviado pra <b>{email}</b>. Clica no link do e-mail (neste navegador) — ou, se
-              vier um código, digita aqui:
-            </p>
-            <input
-              className="food-search conn-code-input"
-              inputMode="numeric"
-              placeholder="000000"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-            />
-            {error && <p className="conn-error">{error}</p>}
-            <BigButton onClick={verify} tone="pulse" disabled={busy || code.trim().length < 6}>
-              {busy ? "Conferindo…" : "Confirmar código"}
-            </BigButton>
-            <BigButton onClick={onClose} tone="ghost">
-              Vou clicar no link
-            </BigButton>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function GroupSheet({ onClose }: { onClose: () => void }) {
-  const sync = useSync();
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const run = async (fn: () => Promise<string | null>) => {
-    setBusy(true);
-    setError(null);
-    const err = await fn();
-    setBusy(false);
-    if (err) setError(err);
-    else onClose();
-  };
-
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <header className="picker-head">
-          <h2>Seu grupo</h2>
-          <button onClick={onClose} aria-label="Fechar">
-            <IconX />
-          </button>
-        </header>
-        <p className="conn-note">Crie o grupo da academia…</p>
-        <input
-          className="food-search"
-          placeholder="Academia do Barão"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <BigButton
-          onClick={() => run(() => sync.createGroup(name))}
-          tone="pulse"
-          disabled={busy || name.trim().length < 2}
-        >
-          Criar grupo
-        </BigButton>
-        <p className="conn-note conn-note-mid">…ou entre com o código de convite:</p>
-        <input
-          className="food-search conn-code-input"
-          placeholder="A1B2C3"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-        />
-        {error && <p className="conn-error">{error}</p>}
-        <BigButton
-          onClick={() => run(() => sync.joinGroup(code))}
-          tone="ink"
-          disabled={busy || code.trim().length < 4}
-        >
-          Entrar no grupo
-        </BigButton>
-      </div>
-    </div>
-  );
-}

@@ -398,10 +398,12 @@ export function buildSeedState(): AppState {
   const weeks = 9;
   const workouts = DEFAULT_WORKOUTS;
   const sessions = makeHistory(workouts, weeks, rnd);
+  // demo (deslogado): "Visitante", nunca o nome de um dono real — evita que
+  // alguém confunda o modo demonstração com estar logado na própria conta
   const me: Member = {
-    id: "m-pedro",
-    name: "Pedro",
-    initials: "PE",
+    id: "m-visitante",
+    name: "Visitante",
+    initials: "VI",
     color: "#e4573d",
     isMe: true,
     presence: sessions.map((s) => s.date),
@@ -409,7 +411,7 @@ export function buildSeedState(): AppState {
   const phase2 = buildPhase2(new Set(me.presence));
   return {
     version: 3,
-    userName: "Pedro",
+    userName: "Visitante",
     workouts,
     sessions,
     members: [me, ...makeFriends(weeks, rnd)],

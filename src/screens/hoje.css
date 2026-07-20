@@ -23,6 +23,14 @@
 .hoje-head {
   position: relative;
   padding: 26px 4px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hoje-head-text {
+  min-width: 0;
 }
 
 .hoje-head h1 {

@@ -5,6 +5,7 @@ import { EXERCISES, EXERCISE_BY_ID, MUSCLE_GROUPS } from "../lib/exercises";
 import type { PlanItem } from "../lib/types";
 import { IconBack, IconMinus, IconPlus, IconTrash, IconX } from "../components/icons";
 import { BigButton } from "../components/ui";
+import { Portal } from "../components/Portal";
 import "./planoeditor.css";
 
 export function PlanoEditor() {
@@ -118,6 +119,7 @@ export function PlanoEditor() {
       </BigButton>
 
       {picking && (
+        <Portal>
         <div className="sheet-backdrop" onClick={() => setPicking(false)}>
           <div className="sheet picker" onClick={(e) => e.stopPropagation()}>
             <header className="picker-head">
@@ -170,6 +172,7 @@ export function PlanoEditor() {
             </ul>
           </div>
         </div>
+        </Portal>
       )}
     </main>
   );

@@ -4,6 +4,7 @@ import { useStore } from "../lib/store";
 import { EXERCISE_BY_ID } from "../lib/exercises";
 import { IconCheck, IconMinus, IconPlus, IconX } from "../components/icons";
 import { BigButton } from "../components/ui";
+import { Portal } from "../components/Portal";
 import "./sessao.css";
 
 function loadStep(load: number): number {
@@ -189,18 +190,20 @@ export function Sessao() {
       </footer>
 
       {confirmDiscard && (
-        <div className="sheet-backdrop" onClick={() => setConfirmDiscard(false)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <h2>Sair sem salvar?</h2>
-            <p>Esse registro de hoje será descartado. O plano continua intacto.</p>
-            <BigButton onClick={discard} tone="pulse">
-              Descartar treino
-            </BigButton>
-            <BigButton onClick={() => setConfirmDiscard(false)} tone="ghost">
-              Voltar pro treino
-            </BigButton>
+        <Portal>
+          <div className="sheet-backdrop" onClick={() => setConfirmDiscard(false)}>
+            <div className="sheet" onClick={(e) => e.stopPropagation()}>
+              <h2>Sair sem salvar?</h2>
+              <p>Esse registro de hoje será descartado. O plano continua intacto.</p>
+              <BigButton onClick={discard} tone="pulse">
+                Descartar treino
+              </BigButton>
+              <BigButton onClick={() => setConfirmDiscard(false)} tone="ghost">
+                Voltar pro treino
+              </BigButton>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </main>
   );

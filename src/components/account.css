@@ -1,0 +1,119 @@
+/* botão de conta no header da Hoje */
+.hoje-account {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.hoje-account:active {
+  transform: scale(0.94);
+}
+
+/* ponto verde-mata sobre o avatar = conta sincronizada */
+.hoje-account-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--mata);
+  box-shadow: 0 0 0 2.5px var(--paper);
+}
+
+/* pílula "Modo demo" (deslogado) — formato distinto do avatar redondo */
+.hoje-account.demo {
+  gap: 7px;
+  padding: 8px 14px 8px 12px;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.hoje-demo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pulse);
+}
+
+/* sheet de conta */
+.acc-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.acc-id-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.acc-id-info b {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 560;
+}
+
+.acc-id-info small {
+  font-size: 13px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acc-group {
+  background: var(--paper);
+  border-radius: var(--r-md);
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.acc-group > b {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.acc-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.acc-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pulse-deep);
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: var(--pulse-soft);
+}
+
+.acc-note {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-style: italic;
+  font-family: var(--serif);
+  text-align: center;
+  padding: 2px 8px 0;
+}

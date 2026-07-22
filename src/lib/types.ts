@@ -63,6 +63,8 @@ export interface Member {
   /** iniciais pro avatar */
   initials: string;
   color: string;
+  /** foto de perfil (URL pública), quando o membro tem uma */
+  avatarUrl?: string;
   isMe: boolean;
   /** datas ISO em que treinou */
   presence: string[];

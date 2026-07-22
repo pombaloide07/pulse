@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { DEMO_FLAG, useSync } from "./lib/sync";
 import { TabBar } from "./components/TabBar";
+import { NewPasswordSheet } from "./components/account";
 import { Landing } from "./screens/Landing";
 import { Onboarding } from "./screens/Onboarding";
 import { Hoje } from "./screens/Hoje";
@@ -17,7 +18,7 @@ import { Corpo } from "./screens/Corpo";
 import { Grupo } from "./screens/Grupo";
 
 export function App() {
-  const { needsOnboarding, session, ready } = useSync();
+  const { needsOnboarding, needsNewPassword, session, ready } = useSync();
   // re-render quando o visitante opta pela demo (a flag mora no localStorage)
   const [, bump] = useState(0);
 
@@ -48,6 +49,9 @@ export function App() {
       />
     );
   }
+
+  // chegou pelo link de "esqueci a senha": define a nova antes de tudo
+  if (needsNewPassword) return <NewPasswordSheet />;
 
   // conta nova logada: escolhe o nome antes de qualquer coisa
   if (needsOnboarding) return <Onboarding />;

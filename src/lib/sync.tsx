@@ -15,11 +15,54 @@ import { addDays, toISO, todayISO } from "./dates";
 import { volumeTrendPct } from "./logic";
 import { initialsOf } from "./format";
 import { buildFreshState } from "./seed";
+import { buildSharedBlob, type SharedBlob } from "./share";
+import { compressImage } from "./image";
 
 export interface GroupInfo {
   id: string;
   name: string;
   invite_code: string;
+}
+
+/** Check-in por foto (meu, do grupo ou de amigos) — já com URL pública. */
+export interface CheckinInfo {
+  id: string;
+  userId: string;
+  /** ISO yyyy-mm-dd */
+  date: string;
+  photoUrl: string;
+  /** desafios pros quais este check-in vale */
+  challengeIds: string[];
+  createdAt: string;
+}
+
+/** Amigo (ou pedido de amizade) na lista. */
+export interface FriendInfo {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  avatarUrl: string | null;
+  status: "pending" | "accepted";
+  /** true = fui eu que pedi (aguardando o outro lado) */
+  requestedByMe: boolean;
+  /** o que EU mostro pra esse amigo */
+  myShare: Record<string, boolean>;
+}
+
+/** A visão de um amigo: só os blocos que ele liberou pra mim vêm não-nulos. */
+export interface FriendDetail {
+  name: string;
+  initials: string;
+  color: string;
+  avatarUrl: string | null;
+  allowed: Record<string, boolean>;
+  updatedAt: string | null;
+  presence: { dates: string[] } | null;
+  treino: SharedBlob["treino"] | null;
+  metas: SharedBlob["metas"] | null;
+  dieta: SharedBlob["dieta"] | null;
+  peso: SharedBlob["peso"] | null;
 }
 
 interface SyncValue {
@@ -33,19 +76,45 @@ interface SyncValue {
   challenges: Challenge[] | null;
   /** logado com conta nova (sem estado na nuvem) — precisa escolher o nome */
   needsOnboarding: boolean;
+  /** veio de um link de recuperação de senha — precisa definir a nova */
+  needsNewPassword: boolean;
   onboard: (name: string) => Promise<void>;
-  sendLink: (email: string) => Promise<string | null>;
-  verifyCode: (email: string, code: string) => Promise<string | null>;
+  /* auth por e-mail + senha (confirmação por e-mail só no cadastro) */
+  signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string) => Promise<{ error?: string; needsConfirm?: boolean }>;
+  confirmSignup: (email: string, code: string) => Promise<string | null>;
+  resetPassword: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
   createGroup: (name: string) => Promise<string | null>;
   joinGroup: (code: string) => Promise<string | null>;
   createChallenge: (name: string, days: number) => Promise<string | null>;
   signOut: () => Promise<void>;
+  /* perfil: foto e código de amizade */
+  myAvatarUrl: string | null;
+  myFriendCode: string | null;
+  uploadAvatar: (file: File | Blob) => Promise<string | null>;
+  /* check-ins por foto */
+  checkins: CheckinInfo[] | null;
+  checkIn: (file: File | Blob, challengeIds: string[]) => Promise<string | null>;
+  /* amizades */
+  friendList: FriendInfo[] | null;
+  addFriend: (code: string) => Promise<string | null>;
+  respondFriend: (friendId: string, accept: boolean) => Promise<string | null>;
+  removeFriend: (friendId: string) => Promise<string | null>;
+  setFriendShare: (friendId: string, share: Record<string, boolean>) => Promise<string | null>;
+  friendView: (friendId: string) => Promise<FriendDetail | string>;
 }
 
 const SyncCtx = createContext<SyncValue | null>(null);
 
 /** localStorage: o visitante escolheu explorar sem conta (some no logout) */
 export const DEMO_FLAG = "pulse-demo-optin";
+
+/** URL pública de um objeto num bucket público (caminho é imprevisível). */
+export function publicPhotoUrl(bucket: "avatars" | "checkins", path: string | null): string | null {
+  if (!path) return null;
+  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
 
 /* onboarding concluído neste aparelho, por conta — se o upsert inicial do
    estado falhar, o bootstrap não pode mandar a pessoa onboardar de novo
@@ -94,6 +163,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<Member[] | null>(null);
   const [challenges, setChallenges] = useState<Challenge[] | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [needsNewPassword, setNeedsNewPassword] = useState(false);
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  const [myFriendCode, setMyFriendCode] = useState<string | null>(null);
+  const [checkins, setCheckins] = useState<CheckinInfo[] | null>(null);
+  const [friendList, setFriendList] = useState<FriendInfo[] | null>(null);
   // incrementa quando a rede volta, pra re-rodar o bootstrap (offline → online)
   const [reconnectTick, setReconnectTick] = useState(0);
 
@@ -102,6 +176,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const skipPushRef = useRef(false);
   const pushTimerRef = useRef<number>();
   const lastStatsRef = useRef<number | null>(null);
+  const lastSharedRef = useRef<string | null>(null);
   // só sincroniza o estado depois que a conta está decidida (hidratada ou onboarded);
   // impede que o estado de demonstração vaze pra nuvem numa conta nova
   const canPushRef = useRef(false);
@@ -126,7 +201,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
+      setSession(s);
+      // clique no link de "esqueci a senha" cai aqui já logado — o app
+      // pede a senha nova antes de qualquer outra coisa
+      if (evt === "PASSWORD_RECOVERY") setNeedsNewPassword(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -144,9 +224,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setFriends(null);
       setChallenges(null);
       setNeedsOnboarding(false);
+      setMyAvatarUrl(null);
+      setMyFriendCode(null);
+      setCheckins(null);
+      setFriendList(null);
       canPushRef.current = false;
       hydratedUidRef.current = null;
       unsyncedEditsRef.current = false;
+      lastSharedRef.current = null;
       return;
     }
     let cancelled = false;
@@ -180,9 +265,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         (async () => {
           const { data: prof } = await supabase
             .from("profiles")
-            .select("group_id")
+            .select("group_id,avatar_path")
             .eq("id", uid)
             .maybeSingle();
+          if (!cancelled && prof) setMyAvatarUrl(publicPhotoUrl("avatars", prof.avatar_path));
           if (!prof?.group_id) return null;
           const { data: g } = await supabase
             .from("groups")
@@ -195,6 +281,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
       if (groupInfo) setGroup(groupInfo);
+
+      // código de amizade é meu, via RPC (a coluna não é legível nem pro grupo)
+      supabase.rpc("my_friend_code").then(({ data, error }) => {
+        if (!cancelled && !error && typeof data === "string") setMyFriendCode(data);
+      });
+
       if (remote.error) {
         // erro (rede offline, ou algo pior): mantém o estado local, não força
         // onboarding nem push — o app é local-first e re-hidrata quando voltar
@@ -254,7 +346,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const uid = session.user.id;
     const { data: profs } = await supabase
       .from("profiles")
-      .select("id,name,initials,color,stats")
+      .select("id,name,initials,color,stats,avatar_path")
       .eq("group_id", group.id);
     if (!profs) return;
     // 180 dias cobre streaks longas e desafios de até ~6 meses; além disso
@@ -279,6 +371,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           name: p.name || "Alguém",
           initials: p.initials || initialsOf(p.name || "?"),
           color: p.color || FRIEND_COLORS[i % FRIEND_COLORS.length],
+          avatarUrl: publicPhotoUrl("avatars", p.avatar_path) ?? undefined,
           isMe: false,
           presence: byUser.get(p.id) ?? [],
           stats:
@@ -298,6 +391,66 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       .order("starts_on", { ascending: false });
     if (data) setChallenges(data.map(rowToChallenge));
   }, [session, group]);
+
+  /* check-ins visíveis (meus + grupo + amigos) — a RLS já filtra */
+  const loadCheckins = useCallback(async () => {
+    if (!session) return;
+    const since = toISO(addDays(new Date(), -60));
+    const { data, error } = await supabase
+      .from("checkins")
+      .select("id,user_id,date,photo_path,created_at,checkin_challenges(challenge_id)")
+      .gte("date", since)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.warn("checkins fetch:", error.message);
+      return;
+    }
+    setCheckins(
+      (data ?? []).map((c) => ({
+        id: c.id,
+        userId: c.user_id,
+        date: c.date,
+        photoUrl: publicPhotoUrl("checkins", c.photo_path) ?? "",
+        challengeIds: (c.checkin_challenges ?? []).map(
+          (x: { challenge_id: string }) => x.challenge_id
+        ),
+        createdAt: c.created_at,
+      }))
+    );
+  }, [session]);
+
+  /* amigos e pedidos */
+  const loadFriendList = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase.rpc("list_friends");
+    if (error) {
+      console.warn("friends fetch:", error.message);
+      return;
+    }
+    setFriendList(
+      (data ?? []).map(
+        (r: {
+          friend_id: string;
+          name: string;
+          initials: string;
+          color: string;
+          avatar_path: string | null;
+          status: "pending" | "accepted";
+          requested_by_me: boolean;
+          my_share: Record<string, boolean> | null;
+        }) => ({
+          id: r.friend_id,
+          name: r.name || "Alguém",
+          initials: r.initials || initialsOf(r.name || "?"),
+          color: r.color || FRIEND_COLORS[0],
+          avatarUrl: publicPhotoUrl("avatars", r.avatar_path),
+          status: r.status,
+          requestedByMe: r.requested_by_me,
+          myShare: r.my_share ?? {},
+        })
+      )
+    );
+  }, [session]);
 
   useEffect(() => {
     if (!session || !group) return;
@@ -328,6 +481,30 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [session, group, loadFriends, loadChallenges]);
 
+  /* check-ins + amizades: valem mesmo sem grupo (amigos são outra rede) */
+  useEffect(() => {
+    if (!session) return;
+    loadCheckins();
+    loadFriendList();
+    const channel = supabase
+      .channel("checkins-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "checkins" },
+        () => loadCheckins()
+      )
+      // pedido/aceite de amizade aparece sem recarregar o app
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "friendships" },
+        () => loadFriendList()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, loadCheckins, loadFriendList]);
+
   /* presença sobe quando você aparece — inclui dias recentes lançados
      retroativamente (registro rápido). Janela de 7 dias casa com o limite
      retroativo aceito pelo banco (migração 0006). */
@@ -356,7 +533,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       });
   }, [session, recentPresenceKey]);
 
-  /* estado local → nuvem (debounce; last-write-wins) + stats agregadas */
+  /* estado local → nuvem (debounce; last-write-wins) + stats + blocos de amigo */
   useEffect(() => {
     if (!session || !canPushRef.current) return;
     if (skipPushRef.current) {
@@ -386,6 +563,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           .eq("id", uid)
           .then(({ error }) => {
             if (error) console.warn("stats push:", error.message);
+          });
+      }
+      // blocos que amigos podem ver (filtrados POR AMIGO no servidor via
+      // friend_view — aqui sobe o blob completo, o corte é do banco)
+      const blob = buildSharedBlob(state);
+      const key = JSON.stringify({ ...blob, updatedAt: "" });
+      if (key !== lastSharedRef.current) {
+        lastSharedRef.current = key;
+        supabase
+          .from("profiles")
+          .update({ shared: blob })
+          .eq("id", uid)
+          .then(({ error }) => {
+            if (error) console.warn("shared push:", error.message);
           });
       }
     }, 2500);
@@ -421,19 +612,48 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [session, dispatch]
   );
 
-  /* ações de auth e grupo */
-  const sendLink = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  /* ————— auth: e-mail + senha (confirmação só no cadastro) ————— */
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error ? error.message : null;
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
+      password,
       options: { emailRedirectTo: window.location.origin },
+    });
+    if (error) return { error: error.message };
+    // com confirmação de e-mail ligada, session vem nula até confirmar
+    return { needsConfirm: !data.session };
+  }, []);
+
+  const confirmSignup = useCallback(async (email: string, code: string) => {
+    const token = code.trim();
+    const first = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+    if (!first.error) return null;
+    // projetos com template antigo emitem OTP tipo "email" — tenta o outro
+    const second = await supabase.auth.verifyOtp({ email, token, type: "email" });
+    return second.error ? first.error.message : null;
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
     });
     return error ? error.message : null;
   }, []);
 
-  const verifyCode = useCallback(async (email: string, code: string) => {
-    const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: "email" });
-    return error ? error.message : null;
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return error.message;
+    setNeedsNewPassword(false);
+    return null;
   }, []);
+
+  /* ————— grupo e desafios ————— */
 
   const createGroup = useCallback(async (name: string) => {
     const { data, error } = await supabase.rpc("create_group", { group_name: name });
@@ -474,11 +694,147 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [session, group]
   );
 
+  /* ————— foto de perfil ————— */
+
+  const uploadAvatar = useCallback(
+    async (file: File | Blob) => {
+      if (!session) return "entre primeiro";
+      try {
+        const uid = session.user.id;
+        const blob = await compressImage(file, 512, 0.85);
+        // nome novo a cada troca: quebra o cache da URL pública antiga
+        const path = `${uid}/avatar-${Date.now()}.jpg`;
+        const up = await supabase.storage
+          .from("avatars")
+          .upload(path, blob, { contentType: "image/jpeg" });
+        if (up.error) return up.error.message;
+        const { error } = await supabase
+          .from("profiles")
+          .update({ avatar_path: path })
+          .eq("id", uid);
+        if (error) return error.message;
+        setMyAvatarUrl(publicPhotoUrl("avatars", path));
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : "não deu pra ler essa imagem";
+      }
+    },
+    [session]
+  );
+
+  /* ————— check-in por foto ————— */
+
+  const checkIn = useCallback(
+    async (file: File | Blob, challengeIds: string[]) => {
+      if (!session) return "entre primeiro";
+      try {
+        const uid = session.user.id;
+        const blob = await compressImage(file, 1080, 0.82);
+        const path = `${uid}/${todayISO()}-${Date.now()}.jpg`;
+        const up = await supabase.storage
+          .from("checkins")
+          .upload(path, blob, { contentType: "image/jpeg" });
+        if (up.error) return up.error.message;
+        const ins = await supabase
+          .from("checkins")
+          .insert({ user_id: uid, date: todayISO(), photo_path: path })
+          .select("id")
+          .single();
+        if (ins.error) return ins.error.message;
+        if (challengeIds.length) {
+          const { error } = await supabase
+            .from("checkin_challenges")
+            .insert(challengeIds.map((challenge_id) => ({ checkin_id: ins.data.id, challenge_id })));
+          if (error) return error.message;
+        }
+        loadCheckins();
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : "não deu pra ler essa foto";
+      }
+    },
+    [session, loadCheckins]
+  );
+
+  /* ————— amizades ————— */
+
+  const addFriend = useCallback(
+    async (code: string) => {
+      const { error } = await supabase.rpc("add_friend", { code });
+      if (error) return error.message;
+      loadFriendList();
+      return null;
+    },
+    [loadFriendList]
+  );
+
+  const respondFriend = useCallback(
+    async (friendId: string, accept: boolean) => {
+      const { error } = await supabase.rpc("respond_friend", { friend: friendId, accept });
+      if (error) return error.message;
+      loadFriendList();
+      return null;
+    },
+    [loadFriendList]
+  );
+
+  const removeFriend = useCallback(
+    async (friendId: string) => {
+      const { error } = await supabase.rpc("remove_friend", { friend: friendId });
+      if (error) return error.message;
+      loadFriendList();
+      return null;
+    },
+    [loadFriendList]
+  );
+
+  const setFriendShare = useCallback(
+    async (friendId: string, share: Record<string, boolean>) => {
+      const { error } = await supabase.rpc("set_friend_share", { friend: friendId, share });
+      if (error) return error.message;
+      loadFriendList();
+      return null;
+    },
+    [loadFriendList]
+  );
+
+  const friendView = useCallback(async (friendId: string): Promise<FriendDetail | string> => {
+    const { data, error } = await supabase.rpc("friend_view", { friend: friendId });
+    if (error) return error.message;
+    const v = data as {
+      name: string;
+      initials: string;
+      color: string;
+      avatar_path: string | null;
+      allowed: Record<string, boolean> | null;
+      updated_at: string | null;
+      presence: { dates: string[] } | null;
+      treino: FriendDetail["treino"];
+      metas: FriendDetail["metas"];
+      dieta: FriendDetail["dieta"];
+      peso: FriendDetail["peso"];
+    };
+    return {
+      name: v.name || "Alguém",
+      initials: v.initials || initialsOf(v.name || "?"),
+      color: v.color || FRIEND_COLORS[0],
+      avatarUrl: publicPhotoUrl("avatars", v.avatar_path),
+      allowed: v.allowed ?? {},
+      updatedAt: v.updated_at,
+      presence: v.presence ?? null,
+      treino: v.treino ?? null,
+      metas: v.metas ?? null,
+      dieta: v.dieta ?? null,
+      peso: v.peso ?? null,
+    };
+  }, []);
+
   const signOut = useCallback(async () => {
     // zera os refs de sync antes de sair: evita push residual com token morto
     canPushRef.current = false;
     skipPushRef.current = false;
     lastStatsRef.current = null;
+    lastSharedRef.current = null;
     hydratedUidRef.current = null;
     pushedPresenceRef.current = new Set();
     window.clearTimeout(pushTimerRef.current);
@@ -493,6 +849,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setFriends(null);
     setChallenges(null);
     setNeedsOnboarding(false);
+    setNeedsNewPassword(false);
+    setMyAvatarUrl(null);
+    setMyFriendCode(null);
+    setCheckins(null);
+    setFriendList(null);
     // volta ao demo e apaga os dados privados do store/localStorage — senão
     // ficariam visíveis (e disponíveis pro próximo) sob o rótulo "Modo demo"
     dispatch({ type: "RESET" });
@@ -507,13 +868,28 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         friends,
         challenges,
         needsOnboarding,
+        needsNewPassword,
         onboard,
-        sendLink,
-        verifyCode,
+        signIn,
+        signUp,
+        confirmSignup,
+        resetPassword,
+        updatePassword,
         createGroup,
         joinGroup,
         createChallenge,
         signOut,
+        myAvatarUrl,
+        myFriendCode,
+        uploadAvatar,
+        checkins,
+        checkIn,
+        friendList,
+        addFriend,
+        respondFriend,
+        removeFriend,
+        setFriendShare,
+        friendView,
       }}
     >
       {children}

@@ -14,11 +14,13 @@ npm run build    # build de produção em dist/
 ```
 
 Deslogado, o app abre na **landing page** (`src/screens/Landing.tsx`): o fluxo
-principal é entrar por e-mail (magic link); "Explorar sem conta" abre o **modo
-demonstração** (9 semanas de histórico + grupo com 4 amigos, gerados
-deterministicamente e persistidos em `localStorage`; a opção fica na flag
-`pulse-demo-optin`, limpa no logout). Pra resetar a demo: limpe os dados do site
-no navegador (ou `localStorage.removeItem("pulse-state-v1")`).
+principal é **e-mail + senha** (a confirmação por e-mail acontece só na criação
+da conta; "esqueci a senha" manda link de recuperação e o app pede a senha nova
+ao voltar). "Explorar sem conta" abre o **modo demonstração** (9 semanas de
+histórico + grupo com 4 amigos, gerados deterministicamente e persistidos em
+`localStorage`; a opção fica na flag `pulse-demo-optin`, limpa no logout). Pra
+resetar a demo: limpe os dados do site no navegador (ou
+`localStorage.removeItem("pulse-state-v1")`).
 
 ## O que está implementado
 
@@ -66,14 +68,30 @@ arredondados, gradientes suaves — **com paleta autoral própria**:
 Tipografia: **Fraunces** (títulos, números-herói) + **Instrument Sans** (UI e dados).
 Cores de gráfico validadas (contraste/CVD) contra a superfície creme.
 
-## Fase 3 — Desafios
+## Fase 3 — Desafios, check-in por foto e amigos
 
-Prazo + grupo + check-in (a mágica do GymRats, PRD §7.4). O check-in é a presença:
-concluiu treino num dia do prazo, pontuou — ranking por contagem de dias, nunca por
-corpo. Desafios vivem na aba Grupo (criar: nome + 15/30/45 dias), funcionam offline
-(demo) e no grupo real (tabela `challenges` com RLS + realtime). O grupo também vê a
-variação % de carga de cada um (`profiles.stats`, só de sessões reais — nunca dados
-de demonstração).
+A aba Grupo tem três seções: **Turma** (presença da semana), **Desafios** e
+**Amigos**.
+
+**Desafios com foto** (grupo real; a demo continua por presença): o check-in do
+dia é uma **foto** — tirada na hora ou escolhida da galeria, comprimida no
+cliente (`lib/image.ts`) e subida pro bucket `checkins`. Dá pra ter **vários
+desafios ao mesmo tempo** (trilha de chips pra transitar entre eles), e na hora
+do check-in você escolhe **pra quais desafios a foto vale** (ou faz outro
+check-in com outra foto). Cada desafio tem ranking por contagem de check-ins e
+um **feed por dia** com as fotos de todo mundo (tabelas `checkins` +
+`checkin_challenges`, realtime).
+
+**Amigos** (rede própria, independente do grupo): cada conta tem um código de
+amigo; pedido → aceite → cada lado escolhe **o que o outro vê** (presença,
+progressão de carga, metas, dieta, peso — presença e treino por padrão, o resto
+opt-in). O app publica um blob `profiles.shared` com os blocos pré-computados e
+o amigo só lê via RPC `friend_view`, que **filtra no servidor** pelo share
+daquela direção (`friendships.share_a/share_b`). Foto de perfil no bucket
+`avatars` aparece no grupo, nos desafios e nos amigos.
+
+O grupo também vê a variação % de carga de cada um (`profiles.stats`, só de
+sessões reais — nunca dados de demonstração).
 
 ## Deploy
 

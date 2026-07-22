@@ -1,0 +1,236 @@
+/* ————— desafios (foto) ————— */
+
+.desafios {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* trilha de desafios: transite entre eles */
+.ch-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  scrollbar-width: none;
+}
+
+.ch-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ch-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 9px 15px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.ch-tab-on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.ch-tab-past {
+  opacity: 0.6;
+}
+
+.ch-tab-new {
+  padding: 9px 12px;
+}
+
+.ch-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pulse);
+}
+
+.ch-tab-on .ch-live {
+  background: var(--pulse-soft);
+}
+
+/* régua de dias do feed */
+.ch-days {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px;
+  margin-top: 4px;
+  scrollbar-width: none;
+}
+
+.ch-days::-webkit-scrollbar {
+  display: none;
+}
+
+.ch-days .pf {
+  flex-shrink: 0;
+}
+
+/* feed de fotos do dia */
+.ch-feed {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ch-photo {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--paper-deep);
+  aspect-ratio: 3 / 4;
+}
+
+.ch-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ch-photo figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 9px 8px;
+  background: linear-gradient(transparent, rgba(20, 14, 8, 0.65));
+  color: #fdf9f2;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ch-feed-empty {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 14px 8px;
+  background: var(--paper);
+  border-radius: var(--r-md);
+}
+
+/* ————— sheet de check-in ————— */
+
+.ci-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 6px;
+}
+
+.ci-pick-btn {
+  padding: 22px 10px;
+  border-radius: var(--r-md);
+  border: 1.5px dashed var(--line);
+  background: var(--card-warm);
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.ci-pick-btn:active {
+  border-color: var(--pulse);
+}
+
+.ci-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin: 4px 0 6px;
+  max-height: 300px;
+}
+
+.ci-preview img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.ci-preview span {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fdf9f2;
+  background: rgba(20, 14, 8, 0.55);
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+}
+
+.ci-label {
+  margin: 10px 2px 8px;
+}
+
+.ci-challenges {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ci-ch {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  text-align: left;
+}
+
+.ci-ch-on {
+  border-color: var(--mata);
+  background: var(--mata-soft);
+}
+
+.ci-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.ci-box-on {
+  border-color: var(--mata);
+  background: var(--mata);
+}
+
+.ci-ch-name {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.ci-ch-name small {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.ci-hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  padding: 0 2px 6px;
+}

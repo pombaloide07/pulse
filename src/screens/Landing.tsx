@@ -56,7 +56,7 @@ export function Landing({ onDemo }: { onDemo: () => void }) {
           </button>
         </div>
         <p className="ld-cta-note">
-          Sem senha: você entra com um link mágico no seu e-mail.
+          E-mail e senha, simples — a confirmação por e-mail é só na criação da conta.
         </p>
       </section>
 

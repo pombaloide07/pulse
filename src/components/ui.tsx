@@ -47,11 +47,14 @@ export function Sheet({
 export function Avatar({
   initials,
   color,
+  photoUrl,
   size = 40,
   dimmed = false,
 }: {
   initials: string;
   color: string;
+  /** com foto de perfil, ela cobre as iniciais */
+  photoUrl?: string | null;
   size?: number;
   dimmed?: boolean;
 }) {
@@ -68,7 +71,7 @@ export function Avatar({
         } as CSSProperties
       }
     >
-      {initials}
+      {photoUrl ? <img className="avatar-photo" src={photoUrl} alt="" loading="lazy" /> : initials}
     </span>
   );
 }

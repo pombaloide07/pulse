@@ -112,6 +112,12 @@ export function Resumo() {
         <BigButton onClick={() => navigate("/", { replace: true })} tone="ink">
           Fechar
         </BigButton>
+        <BigButton
+          onClick={() => navigate("/grupo?seg=desafios", { replace: true })}
+          tone="ghost"
+        >
+          📸 Check-in do desafio
+        </BigButton>
         <BigButton onClick={() => navigate("/treino?seg=progressao", { replace: true })} tone="ghost">
           Ver progressão
         </BigButton>

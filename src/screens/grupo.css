@@ -364,3 +364,8 @@
   font-style: italic;
   font-family: var(--serif);
 }
+
+/* segmento Turma | Desafios | Amigos (reusa o estilo .th-seg do treino) */
+.grupo-seg {
+  grid-template-columns: 1fr 1fr 1fr;
+}

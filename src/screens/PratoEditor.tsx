@@ -3,15 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { FOOD_BY_ID } from "../lib/foods";
 import type { Dish } from "../lib/types";
-import { dishMacros } from "../lib/nutrition";
+import { dishMacros, foodMacros, gramsStep } from "../lib/nutrition";
+import { fmtInt as fmt } from "../lib/format";
 import { FoodSearchSheet } from "./Dieta";
-import { Portal } from "../components/Portal";
 import { IconBack, IconMinus, IconPlus, IconTrash } from "../components/icons";
-import { BigButton } from "../components/ui";
+import { BigButton, Sheet } from "../components/ui";
 import "./pratoeditor.css";
 
 const ICONS = ["🍱", "🥤", "🍽️", "🍳", "🥗", "🍝", "🥪", "🍚"];
-const fmt = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
 export function PratoEditor() {
   const { dishId } = useParams();
@@ -109,14 +108,14 @@ export function PratoEditor() {
         {draft.ingredients.map((ing) => {
           const food = FOOD_BY_ID[ing.foodId];
           if (!food) return null;
-          const step = food.unitGrams && food.unitGrams <= 50 ? food.unitGrams : 10;
+          const step = gramsStep(food, 10);
+          const im = foodMacros(food, ing.grams);
           return (
             <div key={ing.foodId} className="card pe-item">
               <div className="pe-item-info">
                 <b>{food.name}</b>
                 <small>
-                  {fmt((food.per100.kcal * ing.grams) / 100)} kcal ·{" "}
-                  {fmt((food.per100.prot * ing.grams) / 100)}g prot
+                  {fmt(im.kcal)} kcal · {fmt(im.prot)}g prot
                 </small>
               </div>
               <div className="pe-qty">
@@ -187,26 +186,22 @@ export function PratoEditor() {
       )}
 
       {confirmDelete && (
-        <Portal>
-          <div className="sheet-backdrop" onClick={() => setConfirmDelete(false)}>
-            <div className="sheet" onClick={(e) => e.stopPropagation()}>
-              <h2>Excluir "{draft.name}"?</h2>
-              <p>O que já foi registrado com ele continua no histórico.</p>
-              <BigButton
-                onClick={() => {
-                  dispatch({ type: "DELETE_DISH", id: draft.id });
-                  navigate("/dieta/pratos");
-                }}
-                tone="pulse"
-              >
-                Excluir
-              </BigButton>
-              <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
-                Cancelar
-              </BigButton>
-            </div>
-          </div>
-        </Portal>
+        <Sheet onClose={() => setConfirmDelete(false)}>
+          <h2>Excluir "{draft.name}"?</h2>
+          <p>O que já foi registrado com ele continua no histórico.</p>
+          <BigButton
+            onClick={() => {
+              dispatch({ type: "DELETE_DISH", id: draft.id });
+              navigate("/dieta/pratos");
+            }}
+            tone="pulse"
+          >
+            Excluir
+          </BigButton>
+          <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
+            Cancelar
+          </BigButton>
+        </Sheet>
       )}
     </main>
   );

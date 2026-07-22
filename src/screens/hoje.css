@@ -238,3 +238,16 @@
   font-weight: 550;
   margin-top: 2px;
 }
+
+/* link de lançamento retroativo sob o botão principal */
+.today-quicklog {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+}

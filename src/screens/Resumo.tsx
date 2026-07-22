@@ -16,6 +16,9 @@ export function Resumo() {
     return (
       <main className="screen">
         <p>Resumo não encontrado.</p>
+        <BigButton onClick={() => navigate("/", { replace: true })} tone="ink">
+          Voltar pro início
+        </BigButton>
       </main>
     );
   }

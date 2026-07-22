@@ -1,28 +1,40 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../lib/store";
 import { latestWeight, readLoop, sortedWeights } from "../lib/nutrition";
 import { todayISO } from "../lib/dates";
+import { fmtDec1 as fmtKg } from "../lib/format";
 import { LineChart } from "../components/charts";
 import { Chip } from "../components/ui";
 import { IconCheck, IconMinus, IconPlus, IconUp } from "../components/icons";
 import "./corpo.css";
 
-const fmtKg = (n: number) => n.toFixed(1).replace(".", ",");
-
 export function Corpo() {
   const { state, dispatch } = useStore();
-  const today = todayISO();
   const weights = useMemo(() => sortedWeights(state), [state]);
   const current = latestWeight(state) ?? 75;
-  const loggedToday = weights.some((w) => w.date === today);
+  const loggedToday = weights.some((w) => w.date === todayISO());
 
   const [kg, setKg] = useState(current);
+  const [touched, setTouched] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // se a hidratação (login/sync) trouxer o peso real depois do primeiro
+  // render, acompanha — senão um toque registraria o default de 75kg
+  useEffect(() => {
+    if (!touched) setKg(current);
+  }, [current, touched]);
+
+  const bump = (delta: number) => {
+    setTouched(true);
+    setKg((k) => Math.min(300, Math.max(30, +(k + delta).toFixed(1))));
+  };
 
   const loop = useMemo(() => readLoop(state), [state]);
 
   const register = () => {
-    dispatch({ type: "LOG_WEIGHT", date: today, kg: +kg.toFixed(1) });
+    // todayISO() na hora do clique — a data do render fica velha se o app
+    // passa da meia-noite aberto
+    dispatch({ type: "LOG_WEIGHT", date: todayISO(), kg: +kg.toFixed(1) });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
@@ -54,7 +66,7 @@ export function Corpo() {
             )}
             {loop.protPerKg !== null && (
               <Chip tone={loop.protPerKg >= 1.6 ? "ambar" : "neutral"}>
-                {loop.protPerKg.toFixed(1).replace(".", ",")} g/kg prot
+                {fmtKg(loop.protPerKg)} g/kg prot
               </Chip>
             )}
           </div>
@@ -64,14 +76,14 @@ export function Corpo() {
       <section className="card peso-card rise">
         <p className="eyebrow">Peso de hoje</p>
         <div className="peso-ctrl">
-          <button onClick={() => setKg(+(kg - 0.1).toFixed(1))} aria-label="Menos 100g">
+          <button onClick={() => bump(-0.1)} aria-label="Menos 100g">
             <IconMinus size={19} />
           </button>
           <span className="peso-num serif-num">
             {fmtKg(kg)}
             <small>kg</small>
           </span>
-          <button onClick={() => setKg(+(kg + 0.1).toFixed(1))} aria-label="Mais 100g">
+          <button onClick={() => bump(0.1)} aria-label="Mais 100g">
             <IconPlus size={19} stroke={2} />
           </button>
         </div>

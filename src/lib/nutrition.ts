@@ -1,7 +1,8 @@
-import type { AppState, Dish, Food, FoodMacros, Goal, MealEntry, Profile } from "./types";
+import type { AppState, Dish, Food, FoodMacros, MealEntry, Profile } from "./types";
 import { FOOD_BY_ID } from "./foods";
 import { addDays, fromISO, toISO, todayISO } from "./dates";
-import { weeklyVolume } from "./logic";
+import { volumeTrendPct } from "./logic";
+import { fmtDec1, fmtInt } from "./format";
 
 export const EMPTY_MACROS: FoodMacros = { kcal: 0, prot: 0, carb: 0, fat: 0 };
 
@@ -27,6 +28,14 @@ export function dishMacros(dish: Dish): FoodMacros {
 
 export function dishGrams(dish: Dish): number {
   return dish.ingredients.reduce((acc, i) => acc + i.grams, 0);
+}
+
+/**
+ * Degrau do stepper de gramas: porções pequenas andam de porção em porção
+ * (1 ovo, 1 scoop); o resto anda no fallback da tela.
+ */
+export function gramsStep(food: Food, fallback = 25): number {
+  return food.unitGrams && food.unitGrams <= 50 ? food.unitGrams : fallback;
 }
 
 /* ————— calculadora (Mifflin-St Jeor) ————— */
@@ -60,12 +69,6 @@ export function defaultTargets(profile: Profile, weightKg: number): FoodMacros {
 export function kcalFloor(profile: Profile, weightKg: number): number {
   return Math.max(profile.sex === "M" ? 1500 : 1200, tmb(profile, weightKg));
 }
-
-export const GOAL_LABEL: Record<Goal, string> = {
-  bulk: "Bulking",
-  cut: "Cutting",
-  maint: "Manutenção",
-};
 
 /* ————— registro & acompanhamento ————— */
 
@@ -153,22 +156,18 @@ export function readLoop(state: AppState): LoopReading | null {
   const weightDelta =
     wEnd && wStart && wEnd.date !== wStart.date ? +(wEnd.kg - wStart.kg).toFixed(1) : null;
 
-  const vols = weeklyVolume(state, 8).map((w) => w.volume);
-  const last4 = vols.slice(4).reduce((a, b) => a + b, 0);
-  const prev4 = vols.slice(0, 4).reduce((a, b) => a + b, 0);
-  const volumePct = prev4 > 0 ? Math.round(((last4 - prev4) / prev4) * 100) : null;
+  const volumePct = volumeTrendPct(state);
 
   const kg = latestWeight(state);
   const protPerKg = kg ? +(avg.prot / kg).toFixed(1) : null;
   const target = state.profile.targets.kcal;
 
-  const fmt = (n: number) => n.toLocaleString("pt-BR");
   const gain = weightDelta ?? 0;
   const story =
-    `Nas últimas 4 semanas você comeu em média ${fmt(avg.kcal)} kcal/dia` +
-    ` (meta: ${fmt(target)})` +
+    `Nas últimas 4 semanas você comeu em média ${fmtInt(avg.kcal)} kcal/dia` +
+    ` (meta: ${fmtInt(target)})` +
     (weightDelta !== null
-      ? ` e ${gain >= 0 ? "ganhou" : "perdeu"} ${Math.abs(gain).toFixed(1).replace(".", ",")}kg`
+      ? ` e ${gain >= 0 ? "ganhou" : "perdeu"} ${fmtDec1(Math.abs(gain))}kg`
       : "") +
     "." +
     (volumePct !== null

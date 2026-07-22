@@ -13,9 +13,12 @@ npm run dev      # http://localhost:5199
 npm run build    # build de produção em dist/
 ```
 
-O app abre com **dados de demonstração** (9 semanas de histórico + grupo com 4 amigos),
-gerados deterministicamente no primeiro load e persistidos em `localStorage`.
-Pra resetar a demo: limpe os dados do site no navegador (ou `localStorage.removeItem("pulse-state-v1")`).
+Deslogado, o app abre na **landing page** (`src/screens/Landing.tsx`): o fluxo
+principal é entrar por e-mail (magic link); "Explorar sem conta" abre o **modo
+demonstração** (9 semanas de histórico + grupo com 4 amigos, gerados
+deterministicamente e persistidos em `localStorage`; a opção fica na flag
+`pulse-demo-optin`, limpa no logout). Pra resetar a demo: limpe os dados do site
+no navegador (ou `localStorage.removeItem("pulse-state-v1")`).
 
 ## O que está implementado
 
@@ -25,6 +28,7 @@ Pra resetar a demo: limpe os dados do site no navegador (ou `localStorage.remove
 - **Sessão** — registro série a série (carga × reps) com steppers grandes, feito pra usar com uma mão entre séries. Concluir exige ao menos 1 série; descartar pede confirmação.
 - **Resumo / Termômetro de Coerência** — "Você apareceu." vem antes e maior que qualquer número; compara plano × realidade (recordes, cargas que subiram, exercícios pulados) sem vermelho e sem julgamento.
 - **Treino** — hub com o **Plano** (split A/B/C editável, ~40 exercícios curados em PT-BR) e a **Progressão** (carga máxima por treino com sinal de platô ≥4 semanas, volume semanal, recordes).
+- **Lançar treino** (registro rápido) — treinou e esqueceu de abrir o app? Registra o treino de hoje ou de qualquer um dos últimos 7 dias em dois toques, como planejado (todas as séries no alvo). Entra na rotação, na progressão e na presença do grupo (o banco aceita presença retroativa de até 7 dias — migração 0006).
 - **Grupo** — quem apareceu hoje, a semana de cada um, constância. Sem ranking, sem peso, sem foto (PRD §11).
 
 **Fase 2 — Dieta + Corpo**
@@ -81,6 +85,10 @@ de demonstração).
   `pulse` com essas mesmas settings (ele sempre builda o `main` mais recente).
 - O auth do Supabase (site_url + allowlist) já aponta pra URL de produção e pro
   localhost de dev.
+- **Headers de segurança** (CSP, X-Frame-Options, nosniff etc.) vivem no
+  [vercel.json](vercel.json). Atenção: como o build clona o repo pra dentro de
+  `repo/`, a Vercel lê o `vercel.json` da **raiz do deployment** — ao redeployar
+  via bootstrap, inclua uma cópia dele junto do `package.json` de bootstrap.
 
 ## Stack
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
@@ -11,14 +12,17 @@ import {
 } from "../lib/logic";
 import { EXERCISE_BY_ID } from "../lib/exercises";
 import { dayTotals } from "../lib/nutrition";
+import { fmtInt } from "../lib/format";
 import { Avatar, BigButton, Chip, WeekStrip } from "../components/ui";
 import { IconCheck, IconChevronRight, IconDiet, IconPulse } from "../components/icons";
 import { HeaderAccount } from "../components/account";
+import { QuickLogSheet } from "../components/QuickLog";
 import "./hoje.css";
 
 export function Hoje() {
   const { state, dispatch } = useStore();
   const navigate = useNavigate();
+  const [quickLog, setQuickLog] = useState(false);
 
   const sync = useSync();
   const me = state.members.find((m) => m.isMe)!;
@@ -117,6 +121,11 @@ export function Hoje() {
           <IconPulse size={20} />
           {active ? "Continuar treino" : trainedToday ? "Registrar outro treino" : "Começar treino"}
         </BigButton>
+        {!active && (
+          <button className="today-quicklog" onClick={() => setQuickLog(true)}>
+            Treinou e não registrou? Lançar treino de outro dia
+          </button>
+        )}
       </section>
 
       <button className="card food-card rise" onClick={() => navigate("/dieta")}>
@@ -130,7 +139,7 @@ export function Hoje() {
             {!hideNumbers && (
               <>
                 {" · "}
-                {Math.round(food.kcal).toLocaleString("pt-BR")} kcal
+                {fmtInt(food.kcal)} kcal
               </>
             )}
           </p>
@@ -164,6 +173,8 @@ export function Hoje() {
         </div>
         <IconChevronRight />
       </button>
+
+      {quickLog && <QuickLogSheet onClose={() => setQuickLog(false)} />}
     </main>
   );
 }

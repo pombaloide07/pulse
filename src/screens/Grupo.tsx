@@ -10,10 +10,9 @@ import {
   weekStreak,
 } from "../lib/logic";
 import type { Member } from "../lib/types";
-import { Avatar, BigButton, Chip } from "../components/ui";
-import { IconCheck, IconMedal, IconPlus, IconUp, IconX } from "../components/icons";
+import { Avatar, BigButton, Chip, Sheet } from "../components/ui";
+import { IconCheck, IconMedal, IconPlus, IconUp } from "../components/icons";
 import { LoginSheet, GroupSheet } from "../components/account";
-import { Portal } from "../components/Portal";
 import { WEEKDAY_LETTERS, addDays, toISO, todayISO } from "../lib/dates";
 import "./grupo.css";
 
@@ -267,15 +266,7 @@ function DesafioSheet({
   };
 
   return (
-    <Portal>
-      <div className="sheet-backdrop" onClick={onClose}>
-        <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <header className="picker-head">
-            <h2>Novo desafio</h2>
-            <button onClick={onClose} aria-label="Fechar">
-              <IconX />
-            </button>
-          </header>
+    <Sheet title="Novo desafio" onClose={onClose}>
           <p className="conn-note">
             Prazo fechado, grupo fechado, um check-in por dia de treino. Simples assim.
           </p>
@@ -301,9 +292,7 @@ function DesafioSheet({
           <BigButton onClick={submit} tone="pulse" disabled={busy || name.trim().length < 2}>
             {busy ? "Criando…" : "Começar desafio"}
           </BigButton>
-        </div>
-      </div>
-    </Portal>
+    </Sheet>
   );
 }
 

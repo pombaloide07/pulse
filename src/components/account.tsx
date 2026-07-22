@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
-import { Avatar, BigButton } from "./ui";
-import { IconCheck, IconX } from "./icons";
-import { Portal } from "./Portal";
+import { Avatar, BigButton, Sheet } from "./ui";
+import { IconCheck } from "./icons";
 import "./account.css";
 
 /* ————— entrar por e-mail (magic link) ————— */
@@ -35,15 +34,7 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Portal>
-      <div className="sheet-backdrop" onClick={onClose}>
-        <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <header className="picker-head">
-            <h2>Entrar</h2>
-            <button onClick={onClose} aria-label="Fechar">
-              <IconX />
-            </button>
-          </header>
+    <Sheet title="Entrar" onClose={onClose}>
           {!sent ? (
             <>
               <p className="conn-note">
@@ -84,9 +75,7 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
               </BigButton>
             </>
           )}
-        </div>
-      </div>
-    </Portal>
+    </Sheet>
   );
 }
 
@@ -109,15 +98,7 @@ export function GroupSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Portal>
-      <div className="sheet-backdrop" onClick={onClose}>
-        <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <header className="picker-head">
-            <h2>Seu grupo</h2>
-            <button onClick={onClose} aria-label="Fechar">
-              <IconX />
-            </button>
-          </header>
+    <Sheet title="Seu grupo" onClose={onClose}>
           <p className="conn-note">Crie o grupo da academia…</p>
           <input
             className="food-search"
@@ -135,7 +116,7 @@ export function GroupSheet({ onClose }: { onClose: () => void }) {
           <p className="conn-note conn-note-mid">…ou entre com o código de convite:</p>
           <input
             className="food-search conn-code-input"
-            placeholder="A1B2C3"
+            placeholder="A1B2C3D4E5"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
           />
@@ -147,9 +128,7 @@ export function GroupSheet({ onClose }: { onClose: () => void }) {
           >
             Entrar no grupo
           </BigButton>
-        </div>
-      </div>
-    </Portal>
+    </Sheet>
   );
 }
 
@@ -189,16 +168,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
       {/* esconde o sheet de conta enquanto um sub-sheet (login/grupo) está aberto,
           pra não empilhar dois backdrops full-screen no mesmo portal-root */}
       {sub === null && (
-      <Portal>
-        <div className="sheet-backdrop" onClick={onClose}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <header className="picker-head">
-              <h2>{sync.session ? "Sua conta" : "Modo demonstração"}</h2>
-              <button onClick={onClose} aria-label="Fechar">
-                <IconX />
-              </button>
-            </header>
-
+      <Sheet title={sync.session ? "Sua conta" : "Modo demonstração"} onClose={onClose}>
             {sync.session ? (
               <>
                 <div className="acc-identity">
@@ -252,9 +222,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
                 </BigButton>
               </>
             )}
-          </div>
-        </div>
-      </Portal>
+      </Sheet>
       )}
 
       {/* sub-sheets atados à sessão: se ela cair por baixo, desmontam junto */}

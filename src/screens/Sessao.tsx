@@ -2,14 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { EXERCISE_BY_ID } from "../lib/exercises";
+import { loadStep } from "../lib/logic";
 import { IconCheck, IconMinus, IconPlus, IconX } from "../components/icons";
-import { BigButton } from "../components/ui";
-import { Portal } from "../components/Portal";
+import { BigButton, Sheet } from "../components/ui";
 import "./sessao.css";
-
-function loadStep(load: number): number {
-  return load >= 80 ? 5 : 2;
-}
 
 export function Sessao() {
   const { sessionId } = useParams();
@@ -31,19 +27,26 @@ export function Sessao() {
 
   const totals = useMemo(() => {
     if (!session) return { done: 0, all: 0 };
+    // só logs de exercícios ainda no plano — remover um exercício no meio do
+    // treino não pode deixar séries fantasma travando o 100%
+    const inPlan = new Set(workout?.items.map((i) => i.exerciseId));
     let done = 0;
     let all = 0;
     for (const l of session.logs) {
+      if (!inPlan.has(l.exerciseId)) continue;
       all += l.sets.length;
       done += l.sets.filter((s) => s.done).length;
     }
     return { done, all };
-  }, [session]);
+  }, [session, workout]);
 
   if (!session || !workout) {
     return (
       <main className="screen">
         <p>Treino não encontrado.</p>
+        <BigButton onClick={() => navigate("/", { replace: true })} tone="ink">
+          Voltar pro início
+        </BigButton>
       </main>
     );
   }
@@ -190,20 +193,16 @@ export function Sessao() {
       </footer>
 
       {confirmDiscard && (
-        <Portal>
-          <div className="sheet-backdrop" onClick={() => setConfirmDiscard(false)}>
-            <div className="sheet" onClick={(e) => e.stopPropagation()}>
-              <h2>Sair sem salvar?</h2>
-              <p>Esse registro de hoje será descartado. O plano continua intacto.</p>
-              <BigButton onClick={discard} tone="pulse">
-                Descartar treino
-              </BigButton>
-              <BigButton onClick={() => setConfirmDiscard(false)} tone="ghost">
-                Voltar pro treino
-              </BigButton>
-            </div>
-          </div>
-        </Portal>
+        <Sheet onClose={() => setConfirmDiscard(false)}>
+          <h2>Sair sem salvar?</h2>
+          <p>Esse registro de hoje será descartado. O plano continua intacto.</p>
+          <BigButton onClick={discard} tone="pulse">
+            Descartar treino
+          </BigButton>
+          <BigButton onClick={() => setConfirmDiscard(false)} tone="ghost">
+            Voltar pro treino
+          </BigButton>
+        </Sheet>
       )}
     </main>
   );

@@ -40,10 +40,6 @@
   stroke-width: 2;
 }
 
-.chart-dot-hot {
-  fill: var(--pulse-deep);
-}
-
 .chart-cross {
   stroke: var(--ink-3);
   stroke-width: 1;

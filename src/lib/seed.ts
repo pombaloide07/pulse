@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { addDays, toISO } from "./dates";
 import { defaultTargets, dishGrams, dishMacros } from "./nutrition";
+import { initialsOf } from "./format";
 
 /** PRNG determinístico — o seed sempre gera a mesma história. */
 function mulberry32(a: number) {
@@ -372,7 +373,7 @@ export function buildFreshState(name: string): AppState {
   const me: Member = {
     id: "m-me",
     name: clean,
-    initials: clean.slice(0, 2).toUpperCase(),
+    initials: initialsOf(clean),
     color: "#e4573d",
     isMe: true,
     presence: [],

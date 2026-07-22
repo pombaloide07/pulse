@@ -8,6 +8,7 @@ import {
   tmb,
 } from "../lib/nutrition";
 import type { Goal } from "../lib/types";
+import { fmtDec1, fmtInt as fmt } from "../lib/format";
 import { Field } from "./PlanoEditor";
 import { IconBack } from "../components/icons";
 import { BigButton } from "../components/ui";
@@ -31,8 +32,6 @@ const GOALS: { v: Goal; label: string; note: string }[] = [
     note: "superávit moderado (~300 kcal) — agressivo demais vira barriguinha, não músculo",
   },
 ];
-
-const fmt = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
 export function DietaMetas() {
   const { state, dispatch } = useStore();
@@ -90,7 +89,7 @@ export function DietaMetas() {
           <div className="field">
             <span className="field-label">peso kg</span>
             <button className="metas-weight" onClick={() => navigate("/corpo")}>
-              <b className="serif-num">{kg.toFixed(1).replace(".", ",")}</b>
+              <b className="serif-num">{fmtDec1(kg)}</b>
               <small>no Corpo</small>
             </button>
           </div>

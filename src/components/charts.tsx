@@ -73,7 +73,8 @@ export function LineChart({
     setHover(best);
   };
 
-  const h = hover ?? points.length - 1;
+  // clamp: hover fica em estado e a lista pode encolher (hidratação) por baixo
+  const h = Math.min(hover ?? points.length - 1, points.length - 1);
   const hc = geom.coords[h];
 
   return (
@@ -138,7 +139,7 @@ export function VolumeBars({ data }: { data: { week: string; volume: number }[] 
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...data.map((d) => d.volume), 1);
   const bw = (W - PAD.left - PAD.right) / data.length;
-  const h = hover ?? data.length - 1;
+  const h = Math.min(hover ?? data.length - 1, data.length - 1);
 
   return (
     <div className="chart-wrap">
@@ -202,7 +203,7 @@ export function DailyBars({
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(...data.map((d) => d.value), target ?? 0, 1) * 1.08;
   const bw = (W - PAD.left - PAD.right) / data.length;
-  const h = hover ?? data.length - 1;
+  const h = Math.min(hover ?? data.length - 1, data.length - 1);
   const yOf = (v: number) => H - PAD.bottom - (v / max) * (H - PAD.top - PAD.bottom);
 
   return (

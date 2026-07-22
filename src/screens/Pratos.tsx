@@ -1,11 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { dishMacros } from "../lib/nutrition";
+import { fmtInt as fmt } from "../lib/format";
 import { IconBack, IconChevronRight, IconPlus } from "../components/icons";
 import { BigButton } from "../components/ui";
 import "./pratos.css";
-
-const fmt = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
 export function Pratos() {
   const { state } = useStore();

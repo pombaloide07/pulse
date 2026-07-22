@@ -12,7 +12,8 @@ import { supabase } from "./supabase";
 import { useStore } from "./store";
 import type { AppState, Challenge, Member } from "./types";
 import { addDays, toISO, todayISO } from "./dates";
-import { weeklyVolume } from "./logic";
+import { volumeTrendPct } from "./logic";
+import { initialsOf } from "./format";
 import { buildFreshState } from "./seed";
 
 export interface GroupInfo {
@@ -23,6 +24,8 @@ export interface GroupInfo {
 
 interface SyncValue {
   session: Session | null;
+  /** sessão inicial já resolvida — evita piscar a landing pra quem está logado */
+  ready: boolean;
   group: GroupInfo | null;
   /** membros remotos do grupo, sem você; null = ainda carregando/offline */
   friends: Member[] | null;
@@ -41,8 +44,44 @@ interface SyncValue {
 
 const SyncCtx = createContext<SyncValue | null>(null);
 
-function initialsOf(name: string): string {
-  return name.trim().slice(0, 2).toUpperCase() || "??";
+/** localStorage: o visitante escolheu explorar sem conta (some no logout) */
+export const DEMO_FLAG = "pulse-demo-optin";
+
+/* onboarding concluído neste aparelho, por conta — se o upsert inicial do
+   estado falhar, o bootstrap não pode mandar a pessoa onboardar de novo
+   (o ONBOARD reconstruiria o estado do zero, apagando o que ela já fez) */
+const onboardedKey = (uid: string) => `pulse-onboarded-${uid}`;
+function wasOnboarded(uid: string): boolean {
+  try {
+    return localStorage.getItem(onboardedKey(uid)) === "1";
+  } catch {
+    return false;
+  }
+}
+function markOnboarded(uid: string) {
+  try {
+    localStorage.setItem(onboardedKey(uid), "1");
+  } catch {
+    /* sem localStorage: o pior caso é re-onboardar */
+  }
+}
+
+interface ChallengeRow {
+  id: string;
+  name: string;
+  starts_on: string;
+  ends_on: string;
+  created_by: string | null;
+}
+
+function rowToChallenge(row: ChallengeRow): Challenge {
+  return {
+    id: row.id,
+    name: row.name,
+    startsOn: row.starts_on,
+    endsOn: row.ends_on,
+    createdBy: row.created_by ?? undefined,
+  };
 }
 
 const FRIEND_COLORS = ["#2f6b52", "#d9950f", "#4f7fa3", "#a05fa3", "#c2402a"];
@@ -50,6 +89,7 @@ const FRIEND_COLORS = ["#2f6b52", "#d9950f", "#4f7fa3", "#a05fa3", "#c2402a"];
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { state, dispatch } = useStore();
   const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [friends, setFriends] = useState<Member[] | null>(null);
   const [challenges, setChallenges] = useState<Challenge[] | null>(null);
@@ -68,10 +108,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // hidrata da nuvem só UMA vez por login; refresh de token não re-hidrata
   // (senão sobrescreveria edições locais recentes com o snapshot do servidor)
   const hydratedUidRef = useRef<string | null>(null);
+  // edições feitas logado mas com o sync ainda bloqueado (abriu offline):
+  // quando a rede volta, elas vencem o snapshot da nuvem — sem isso o
+  // HYDRATE da reconexão apagaria o treino registrado na academia sem sinal
+  const unsyncedEditsRef = useRef(false);
+  const prevStateRef = useRef(state);
+  useEffect(() => {
+    if (prevStateRef.current !== state) {
+      prevStateRef.current = state;
+      if (session && !canPushRef.current) unsyncedEditsRef.current = true;
+    }
+  }, [state, session]);
 
   /* sessão */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -92,6 +146,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setNeedsOnboarding(false);
       canPushRef.current = false;
       hydratedUidRef.current = null;
+      unsyncedEditsRef.current = false;
       return;
     }
     let cancelled = false;
@@ -109,6 +164,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (status === 401 || status === 403) {
           await supabase.auth.signOut();
           dispatch({ type: "RESET" }); // apaga dados privados órfãos → volta ao demo
+        } else {
+          console.warn("getUser:", uErr.message);
         }
         return;
       }
@@ -139,20 +196,47 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (groupInfo) setGroup(groupInfo);
       if (remote.error) {
-        // erro de rede (offline): mantém o estado local, não força onboarding
-        // nem push — o app é local-first e re-hidrata quando reabrir online
+        // erro (rede offline, ou algo pior): mantém o estado local, não força
+        // onboarding nem push — o app é local-first e re-hidrata quando voltar
+        console.warn("state fetch:", remote.error.message);
         return;
       }
+      const pushLocalNow = () =>
+        supabase
+          .from("states")
+          .upsert(
+            { user_id: uid, state: stateRef.current, updated_at: new Date().toISOString() },
+            { onConflict: "user_id" }
+          )
+          .then(({ error }) => {
+            if (error) console.warn("state push:", error.message);
+          });
       if (remote.data?.state) {
         // conta existente: libera o sync e traz o estado da nuvem UMA vez por login.
         // Em refreshes de token (mesmo uid) não re-hidrata — preserva edições locais.
         canPushRef.current = true;
         if (hydratedUidRef.current !== uid) {
           hydratedUidRef.current = uid;
-          skipPushRef.current = true;
-          dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
+          if (unsyncedEditsRef.current) {
+            // houve edição local enquanto offline: o local é mais novo que o
+            // snapshot — empurra em vez de puxar (last-write-wins de verdade)
+            unsyncedEditsRef.current = false;
+            pushLocalNow();
+          } else {
+            skipPushRef.current = true;
+            dispatch({ type: "HYDRATE", state: remote.data.state as AppState });
+          }
         }
         setNeedsOnboarding(false);
+      } else if (wasOnboarded(uid)) {
+        // sem linha em states, mas esta conta JÁ onboardou neste aparelho —
+        // o upsert inicial falhou (rede). Re-onboardar apagaria tudo; trata
+        // como conta existente e sobe o estado local de uma vez.
+        canPushRef.current = true;
+        hydratedUidRef.current = uid;
+        unsyncedEditsRef.current = false;
+        setNeedsOnboarding(false);
+        pushLocalNow();
       } else {
         // conta nova (query ok, sem linha): NÃO empurra o estado demo nem grava
         // o nome do seed — espera o onboarding escolher o nome e criar o limpo
@@ -173,7 +257,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       .select("id,name,initials,color,stats")
       .eq("group_id", group.id);
     if (!profs) return;
-    const since = toISO(addDays(new Date(), -70));
+    // 180 dias cobre streaks longas e desafios de até ~6 meses; além disso
+    // o corte é aceito (presenças mais velhas não mudam nada visível)
+    const since = toISO(addDays(new Date(), -180));
     const { data: pres } = await supabase
       .from("presence")
       .select("user_id,date")
@@ -210,17 +296,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       .select("id,name,starts_on,ends_on,created_by")
       .eq("group_id", group.id)
       .order("starts_on", { ascending: false });
-    if (data) {
-      setChallenges(
-        data.map((c) => ({
-          id: c.id,
-          name: c.name,
-          startsOn: c.starts_on,
-          endsOn: c.ends_on,
-          createdBy: c.created_by ?? undefined,
-        }))
-      );
-    }
+    if (data) setChallenges(data.map(rowToChallenge));
   }, [session, group]);
 
   useEffect(() => {
@@ -252,16 +328,33 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [session, group, loadFriends, loadChallenges]);
 
-  /* presença de hoje sobe quando você aparece */
+  /* presença sobe quando você aparece — inclui dias recentes lançados
+     retroativamente (registro rápido). Janela de 7 dias casa com o limite
+     retroativo aceito pelo banco (migração 0006). */
   const me = state.members.find((m) => m.isMe);
-  const trainedToday = !!me?.presence.includes(todayISO());
+  const pushedPresenceRef = useRef(new Set<string>());
+  const presenceWindowStart = toISO(addDays(new Date(), -7));
+  const recentPresenceKey = (me?.presence ?? [])
+    .filter((d) => d >= presenceWindowStart && d <= todayISO())
+    .sort()
+    .join(",");
   useEffect(() => {
-    if (!session || !trainedToday) return;
+    // canPushRef: presença do estado demo/pré-onboarding nunca sobe
+    if (!session || !canPushRef.current || !recentPresenceKey) return;
+    const uid = session.user.id;
+    const toPush = recentPresenceKey.split(",").filter((d) => !pushedPresenceRef.current.has(d));
+    if (!toPush.length) return;
     supabase
       .from("presence")
-      .upsert({ user_id: session.user.id, date: todayISO() }, { onConflict: "user_id,date" })
-      .then(() => {});
-  }, [session, trainedToday]);
+      .upsert(
+        toPush.map((date) => ({ user_id: uid, date })),
+        { onConflict: "user_id,date" }
+      )
+      .then(({ error }) => {
+        if (error) console.warn("presence push:", error.message);
+        else toPush.forEach((d) => pushedPresenceRef.current.add(d));
+      });
+  }, [session, recentPresenceKey]);
 
   /* estado local → nuvem (debounce; last-write-wins) + stats agregadas */
   useEffect(() => {
@@ -279,21 +372,21 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           { user_id: uid, state, updated_at: new Date().toISOString() },
           { onConflict: "user_id" }
         )
-        .then(() => {});
+        .then(({ error }) => {
+          if (error) console.warn("state push:", error.message);
+        });
       // única coisa de treino que o grupo vê além da presença: variação % de carga.
       // Só sessões reais — o histórico de demonstração ("seed-*") nunca vira stat pública.
-      const real = { ...state, sessions: state.sessions.filter((s) => !s.id.startsWith("seed-")) };
-      const vols = weeklyVolume(real, 8).map((w) => w.volume);
-      const last4 = vols.slice(4).reduce((a, b) => a + b, 0);
-      const prev4 = vols.slice(0, 4).reduce((a, b) => a + b, 0);
-      const volumePct = prev4 > 0 ? Math.round(((last4 - prev4) / prev4) * 100) : null;
+      const volumePct = volumeTrendPct(state, { excludeSeeds: true });
       if (volumePct !== null && volumePct !== lastStatsRef.current) {
         lastStatsRef.current = volumePct;
         supabase
           .from("profiles")
           .update({ stats: { volume_pct: volumePct } })
           .eq("id", uid)
-          .then(() => {});
+          .then(({ error }) => {
+            if (error) console.warn("stats push:", error.message);
+          });
       }
     }, 2500);
     return () => window.clearTimeout(pushTimerRef.current);
@@ -306,10 +399,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const clean = name.trim() || "Atleta";
       const fresh = buildFreshState(clean);
       dispatch({ type: "ONBOARD", name: clean });
-      canPushRef.current = true;
-      setNeedsOnboarding(false);
       const uid = session.user.id;
-      await Promise.all([
+      canPushRef.current = true;
+      // marca como hidratada: o refresh de token (~1h) não pode re-hidratar
+      // da nuvem por cima do que a pessoa editou desde o onboarding
+      hydratedUidRef.current = uid;
+      markOnboarded(uid);
+      setNeedsOnboarding(false);
+      const [prof, st] = await Promise.all([
         supabase
           .from("profiles")
           .upsert({ id: uid, name: clean, initials: initialsOf(clean) }, { onConflict: "id" }),
@@ -318,6 +415,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           { onConflict: "user_id" }
         ),
       ]);
+      if (prof.error) console.warn("profile upsert:", prof.error.message);
+      if (st.error) console.warn("state upsert:", st.error.message);
     },
     [session, dispatch]
   );
@@ -367,13 +466,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (error) return error.message;
       // adiciona direto; o realtime cuida dos desafios criados pelos outros
       setChallenges((prev) => {
-        const c: Challenge = {
-          id: data.id,
-          name: data.name,
-          startsOn: data.starts_on,
-          endsOn: data.ends_on,
-          createdBy: data.created_by ?? undefined,
-        };
+        const c = rowToChallenge(data);
         return prev?.some((x) => x.id === c.id) ? prev : [c, ...(prev ?? [])];
       });
       return null;
@@ -387,7 +480,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     skipPushRef.current = false;
     lastStatsRef.current = null;
     hydratedUidRef.current = null;
+    pushedPresenceRef.current = new Set();
     window.clearTimeout(pushTimerRef.current);
+    // saiu da conta → volta pra landing (o modo demo é uma escolha explícita)
+    try {
+      localStorage.removeItem(DEMO_FLAG);
+    } catch {
+      /* sem localStorage, sem flag */
+    }
     await supabase.auth.signOut();
     setGroup(null);
     setFriends(null);
@@ -402,6 +502,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     <SyncCtx.Provider
       value={{
         session,
+        ready,
         group,
         friends,
         challenges,

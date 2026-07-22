@@ -1,6 +1,46 @@
 import type { CSSProperties, ReactNode } from "react";
 import { WEEKDAY_LETTERS, currentWeekISO, todayISO } from "../lib/dates";
+import { Portal } from "./Portal";
+import { IconX } from "./icons";
 import "./ui.css";
+
+/* ————— Sheet modal (padrão único de todos os sheets do app) ————— */
+
+export function Sheet({
+  title,
+  onClose,
+  className,
+  children,
+}: {
+  /** com title, ganha o header padrão com botão de fechar; sem, o conteúdo cuida */
+  title?: ReactNode;
+  onClose: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Portal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div
+          className={className ? `sheet ${className}` : "sheet"}
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {title !== undefined && (
+            <header className="picker-head">
+              <h2>{title}</h2>
+              <button onClick={onClose} aria-label="Fechar">
+                <IconX />
+              </button>
+            </header>
+          )}
+          {children}
+        </div>
+      </div>
+    </Portal>
+  );
+}
 
 /* ————— Avatar ————— */
 

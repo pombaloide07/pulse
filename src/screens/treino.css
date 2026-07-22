@@ -6,6 +6,25 @@
 
 .th-head {
   padding: 26px 4px 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.th-quicklog {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+  margin-bottom: 4px;
 }
 
 .th-head h1 {

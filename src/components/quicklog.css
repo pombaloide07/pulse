@@ -1,0 +1,75 @@
+/* ————— lançamento rápido de treino ————— */
+
+.ql-label {
+  margin: 14px 2px 8px;
+}
+
+.ql-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ql-days .pf {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ql-trained {
+  display: inline-flex;
+  color: var(--mata);
+}
+
+.pf-on .ql-trained {
+  color: inherit;
+}
+
+.ql-workouts {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ql-workout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ql-workout-on {
+  border-color: var(--ink);
+  background: var(--card-warm);
+}
+
+.ql-letter {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--pulse);
+  width: 28px;
+  text-align: center;
+}
+
+.ql-w-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.ql-w-info small {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.ql-hint {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  text-align: center;
+}

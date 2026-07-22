@@ -10,17 +10,18 @@ import {
   dishMacros,
   dishGrams,
   foodMacros,
+  gramsStep,
   periodAvg,
   dailySeries,
   latestWeight,
 } from "../lib/nutrition";
+import { fmtDec1, fmtInt as fmt } from "../lib/format";
 import { addDays, formatLong, fromISO, toISO, todayISO } from "../lib/dates";
 import { DailyBars } from "../components/charts";
 import { IconChevronRight, IconMinus, IconPlus, IconX } from "../components/icons";
-import { BigButton } from "../components/ui";
+import { BigButton, Sheet } from "../components/ui";
 import "./dieta.css";
 
-const fmt = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const hhmm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 const nowMinutes = () => {
   const d = new Date();
@@ -36,6 +37,7 @@ export function Dieta() {
   const [searching, setSearching] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const today = todayISO();
   const entries = useMemo(() => dayEntries(state, today), [state, today]);
@@ -66,7 +68,9 @@ export function Dieta() {
       entries: [
         {
           id: newId(),
-          date: today,
+          // todayISO() na hora do toque — a data do render envelhece se o app
+          // atravessa a meia-noite aberto
+          date: todayISO(),
           minutes: nowMinutes(),
           name: dish.name,
           grams: dishGrams(dish),
@@ -84,16 +88,18 @@ export function Dieta() {
   }, [state, today]);
 
   const repeatYesterday = () => {
-    if (!yesterdayEntries.length) return;
+    const now = todayISO();
+    const source = dayEntries(state, toISO(addDays(fromISO(now), -1)));
+    if (!source.length) return;
     dispatch({
       type: "LOG_MEALS",
-      entries: yesterdayEntries.map((e) => ({
+      entries: source.map((e) => ({
         ...e,
         id: newId(),
-        date: today,
+        date: now,
       })),
     });
-    showToast(`Ontem repetido — ${yesterdayEntries.length} registros`);
+    showToast(`Ontem repetido — ${source.length} registros`);
   };
 
   const protPct = Math.min(1, t.prot > 0 ? totals.prot / t.prot : 0);
@@ -221,7 +227,7 @@ export function Dieta() {
           </div>
           <div className="dt-tile">
             <b className="serif-num">
-              {kg && avg28.prot ? (avg28.prot / kg).toFixed(1).replace(".", ",") : "—"}
+              {kg && avg28.prot ? fmtDec1(avg28.prot / kg) : "—"}
             </b>
             <small>g de prot por kg</small>
           </div>
@@ -264,7 +270,7 @@ export function Dieta() {
               entries: [
                 {
                   id: newId(),
-                  date: today,
+                  date: todayISO(),
                   minutes: nowMinutes(),
                   name: food.name,
                   grams,
@@ -377,12 +383,10 @@ export function FoodSearchSheet({
     setGrams(f.unitGrams ?? 100);
   };
 
-  const step = picked?.unitGrams && picked.unitGrams <= 50 ? picked.unitGrams : 25;
+  const step = picked ? gramsStep(picked, 25) : 25;
 
   return (
-    <Portal>
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet picker" onClick={(e) => e.stopPropagation()}>
+    <Sheet onClose={onClose} className="picker">
         {!picked ? (
           <>
             <header className="picker-head">
@@ -419,7 +423,7 @@ export function FoodSearchSheet({
                     <span>
                       <b>{f.name}</b>
                       <small>
-                        {Math.round(f.per100.kcal)} kcal · {f.per100.prot.toFixed(1).replace(".", ",")}g
+                        {Math.round(f.per100.kcal)} kcal · {fmtDec1(f.per100.prot)}g
                         prot /100g{f.unitName && ` · ${f.unitName} ≈ ${f.unitGrams}g`}
                       </small>
                     </span>
@@ -445,8 +449,7 @@ export function FoodSearchSheet({
                       <span>
                         <b>{f.name}</b>
                         <small>
-                          {Math.round(f.per100.kcal)} kcal ·{" "}
-                          {f.per100.prot.toFixed(1).replace(".", ",")}g prot /100g
+                          {Math.round(f.per100.kcal)} kcal · {fmtDec1(f.per100.prot)}g prot /100g
                         </small>
                       </span>
                       <IconPlus size={18} />
@@ -502,8 +505,6 @@ export function FoodSearchSheet({
             </BigButton>
           </>
         )}
-      </div>
-    </div>
-    </Portal>
+    </Sheet>
   );
 }

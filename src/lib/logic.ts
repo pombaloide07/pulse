@@ -91,6 +91,11 @@ function bestLoadBefore(state: AppState, exerciseId: string, excludeSessionId: s
   return best;
 }
 
+/** Degrau de ajuste de carga nos steppers: acima de 80kg anda de 5 em 5. */
+export function loadStep(load: number): number {
+  return load >= 80 ? 5 : 2;
+}
+
 /* ————— progressão ————— */
 
 export interface ProgressPoint {
@@ -196,6 +201,21 @@ export function weeklyVolume(state: AppState, nWeeks = 8): { week: string; volum
     out.push({ week: monIso, volume });
   }
   return out;
+}
+
+/**
+ * Variação % do volume: últimas 4 semanas vs as 4 anteriores; null sem base.
+ * excludeSeeds: sessões de demonstração ("seed-*") ficam de fora — obrigatório
+ * pra qualquer número que vire stat pública.
+ */
+export function volumeTrendPct(state: AppState, opts?: { excludeSeeds?: boolean }): number | null {
+  const base = opts?.excludeSeeds
+    ? { ...state, sessions: state.sessions.filter((s) => !s.id.startsWith("seed-")) }
+    : state;
+  const vols = weeklyVolume(base, 8).map((w) => w.volume);
+  const last4 = vols.slice(4).reduce((a, b) => a + b, 0);
+  const prev4 = vols.slice(0, 4).reduce((a, b) => a + b, 0);
+  return prev4 > 0 ? Math.round(((last4 - prev4) / prev4) * 100) : null;
 }
 
 /* ————— presença ————— */

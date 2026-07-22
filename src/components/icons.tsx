@@ -21,23 +21,6 @@ export function IconPulse({ size = 22, stroke = 2 }: IconProps) {
   );
 }
 
-export function IconPlan({ size = 22, stroke = 2 }: IconProps) {
-  return (
-    <svg {...base(size)} strokeWidth={stroke}>
-      <rect x="4" y="3.5" width="16" height="17" rx="3.5" />
-      <path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
-    </svg>
-  );
-}
-
-export function IconProgress({ size = 22, stroke = 2 }: IconProps) {
-  return (
-    <svg {...base(size)} strokeWidth={stroke}>
-      <path d="M4 19.5V15M9.4 19.5v-7.5M14.7 19.5V9M20 19.5v-13" />
-    </svg>
-  );
-}
-
 export function IconGroup({ size = 22, stroke = 2 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={stroke}>

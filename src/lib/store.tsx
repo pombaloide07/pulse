@@ -17,12 +17,13 @@ import type {
   Workout,
 } from "./types";
 import { buildFreshState, buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
-import { todayISO } from "./dates";
+import { fromISO, todayISO } from "./dates";
 
 const STORAGE_KEY = "pulse-state-v1";
 
 type Action =
   | { type: "START_SESSION"; workoutId: string; sessionId: string }
+  | { type: "QUICK_LOG"; workoutId: string; sessionId: string; date: string }
   | { type: "SET_LOG"; sessionId: string; exerciseId: string; setIndex: number; load: number; reps: number }
   | { type: "TOGGLE_SET"; sessionId: string; exerciseId: string; setIndex: number }
   | { type: "FINISH_SESSION"; sessionId: string }
@@ -45,8 +46,11 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "START_SESSION": {
-      if (state.activeSessionId || state.sessions.some((s) => s.id === action.sessionId))
-        return state;
+      // activeSessionId órfão (sessão sumiu num HYDRATE/RESET) não pode
+      // bloquear treino novo pra sempre — só bloqueia se a sessão existe
+      const activeExists =
+        state.activeSessionId && state.sessions.some((s) => s.id === state.activeSessionId);
+      if (activeExists || state.sessions.some((s) => s.id === action.sessionId)) return state;
       const workout = state.workouts.find((w) => w.id === action.workoutId);
       if (!workout) return state;
       const session: Session = {
@@ -68,6 +72,39 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         sessions: [...state.sessions, session],
         activeSessionId: session.id,
+      };
+    }
+    case "QUICK_LOG": {
+      // registro rápido: treino de hoje ou de um dia anterior lançado como
+      // planejado (todas as séries feitas no alvo) — presença conta no dia
+      if (state.sessions.some((s) => s.id === action.sessionId)) return state;
+      const workout = state.workouts.find((w) => w.id === action.workoutId);
+      if (!workout) return state;
+      // meio-dia local do dia lançado: ordena direito na rotação/progressão
+      const when = fromISO(action.date).getTime() + 12 * 3600 * 1000;
+      const session: Session = {
+        id: action.sessionId,
+        workoutId: workout.id,
+        date: action.date,
+        startedAt: when,
+        finishedAt: when,
+        logs: workout.items.map((item) => ({
+          exerciseId: item.exerciseId,
+          sets: Array.from({ length: item.sets }, () => ({
+            load: item.targetLoad,
+            reps: item.targetReps,
+            done: true,
+          })),
+        })),
+      };
+      return {
+        ...state,
+        sessions: [...state.sessions, session],
+        members: state.members.map((m) =>
+          m.isMe && !m.presence.includes(action.date)
+            ? { ...m, presence: [...m.presence, action.date] }
+            : m
+        ),
       };
     }
     case "SET_LOG":
@@ -182,9 +219,26 @@ function reducer(state: AppState, action: Action): AppState {
       return buildFreshState(action.name);
     }
     case "HYDRATE": {
-      // estado vindo do sync (Supabase) — substitui o local se for válido
-      if (action.state?.version === 3) return action.state;
-      if (action.state?.version === 2) return migrateV2toV3(action.state);
+      // estado vindo do sync (Supabase) — substitui o local se for válido.
+      // Valida o mínimo estrutural: um snapshot corrompido na nuvem não pode
+      // derrubar o app inteiro (as telas assumem que existe um membro isMe).
+      const sane = (s: AppState) =>
+        Array.isArray(s.members) &&
+        s.members.some((m) => m?.isMe) &&
+        Array.isArray(s.workouts) &&
+        s.workouts.length > 0 &&
+        Array.isArray(s.sessions);
+      if (action.state?.version === 3) return sane(action.state) ? action.state : state;
+      if (action.state?.version === 2) {
+        const migrated = migrateV2toV3(action.state);
+        return sane(migrated) ? migrated : state;
+      }
+      if (action.state?.version === 1) {
+        // mesmo caminho de migração do loadInitial — um v1 na nuvem não pode
+        // ser descartado e depois atropelado pelo push local
+        const migrated = migrateV2toV3(migrateV1toV2(action.state));
+        return sane(migrated) ? migrated : state;
+      }
       return state;
     }
     case "RESET":

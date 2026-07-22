@@ -95,12 +95,17 @@ export function normalize(s: string): string {
     .toLowerCase();
 }
 
+/* nomes normalizados uma vez no load — a busca roda a cada tecla sobre ~640 itens */
+const SEARCHABLE = ALL_FOODS.map((f) => ({ f, norm: normalize(f.name) }));
+
 /** Busca local: curadoria primeiro, depois TACO; filtro opcional por grupo. */
 export function searchLocalFoods(query: string, group: string): Food[] {
   const q = normalize(query.trim());
-  return ALL_FOODS.filter(
-    (f) => (!group || f.group === group) && (!q || normalize(f.name).includes(q))
-  );
+  const out: Food[] = [];
+  for (const { f, norm } of SEARCHABLE) {
+    if ((!group || f.group === group) && (!q || norm.includes(q))) out.push(f);
+  }
+  return out;
 }
 
 export const FOOD_GROUPS: FoodGroup[] = [

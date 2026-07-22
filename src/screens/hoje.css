@@ -92,6 +92,21 @@
   font-weight: 620;
   font-style: italic;
   box-shadow: 0 8px 20px -8px rgba(228, 87, 61, 0.6);
+  flex-shrink: 0;
+}
+
+.today-letter-rest {
+  background: var(--paper-deep);
+  color: var(--ink-3);
+  box-shadow: none;
+  font-style: normal;
+}
+
+.today-rest-note {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: 4px 0 4px;
 }
 
 .today-head h2 {
@@ -239,15 +254,83 @@
   margin-top: 2px;
 }
 
-/* link de lançamento retroativo sob o botão principal */
-.today-quicklog {
-  display: block;
-  width: 100%;
+/* ações secundárias sob o botão principal (escolher outro treino, lançar) */
+.today-alts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.today-alt {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-3);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-color: var(--line);
+}
+
+.today-alt-sep {
+  color: var(--ink-3);
+}
+
+/* isolado (estado de descanso): centraliza sozinho sob o botão */
+.today-card > .today-alt {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* escolher qual treino fazer hoje */
+.today-picker {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.today-pick {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.today-pick-on {
+  border-color: var(--ink);
+  background: var(--card-warm);
+}
+
+.today-pick-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 21px;
+  font-style: italic;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.today-pick-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.today-pick-info small {
+  color: var(--ink-3);
+  font-size: 12.5px;
 }

@@ -13,10 +13,12 @@ import type {
   MealEntry,
   PlanItem,
   Profile,
+  ScheduleDay,
   Session,
   Workout,
 } from "./types";
 import { buildFreshState, buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
+import { defaultSchedule } from "./logic";
 import { fromISO, todayISO } from "./dates";
 
 const STORAGE_KEY = "pulse-state-v1";
@@ -29,6 +31,9 @@ type Action =
   | { type: "FINISH_SESSION"; sessionId: string }
   | { type: "DISCARD_SESSION"; sessionId: string }
   | { type: "UPDATE_WORKOUT"; workout: Workout }
+  | { type: "ADD_WORKOUT"; workout: Workout }
+  | { type: "DELETE_WORKOUT"; id: string }
+  | { type: "SET_SCHEDULE_DAY"; day: number; value: ScheduleDay }
   | { type: "ADD_PLAN_ITEM"; workoutId: string; item: PlanItem }
   | { type: "REMOVE_PLAN_ITEM"; workoutId: string; exerciseId: string }
   | { type: "SET_PROFILE"; patch: Partial<Profile> }
@@ -159,6 +164,32 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         workouts: state.workouts.map((w) => (w.id === action.workout.id ? action.workout : w)),
       };
+    }
+    case "ADD_WORKOUT": {
+      if (state.workouts.some((w) => w.id === action.workout.id)) return state;
+      return { ...state, workouts: [...state.workouts, action.workout] };
+    }
+    case "DELETE_WORKOUT": {
+      // sempre resta ao menos um treino — a rotação e a agenda dependem disso
+      if (state.workouts.length <= 1) return state;
+      const schedule = (state.schedule ?? defaultSchedule(state.workouts)).map((d) =>
+        d === action.id ? "rest" : d
+      );
+      // sessão ativa desse treino vira órfã (não tem mais plano) → encerra
+      const activeWorkout = state.sessions.find(
+        (s) => s.id === state.activeSessionId
+      )?.workoutId;
+      return {
+        ...state,
+        workouts: state.workouts.filter((w) => w.id !== action.id),
+        schedule,
+        activeSessionId: activeWorkout === action.id ? null : state.activeSessionId,
+      };
+    }
+    case "SET_SCHEDULE_DAY": {
+      const schedule = [...(state.schedule ?? defaultSchedule(state.workouts))];
+      schedule[action.day] = action.value;
+      return { ...state, schedule };
     }
     case "ADD_PLAN_ITEM": {
       return {

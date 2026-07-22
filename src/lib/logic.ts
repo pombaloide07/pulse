@@ -1,4 +1,5 @@
-import type { AppState, Challenge, Member, Session, Workout } from "./types";
+import type { AppState, ScheduleDay, Challenge, Member, Session, Workout } from "./types";
+import { REST_DAY } from "./types";
 import { EXERCISE_BY_ID } from "./exercises";
 import { currentWeekISO, diffDays, fromISO, mondayOf, toISO, todayISO } from "./dates";
 
@@ -13,6 +14,58 @@ export function nextWorkout(state: AppState): Workout {
   if (!last) return state.workouts[0];
   const idx = state.workouts.findIndex((w) => w.id === last.workoutId);
   return state.workouts[(idx + 1) % state.workouts.length] ?? state.workouts[0];
+}
+
+/* ————— agenda semanal (dias de treino × descanso) ————— */
+
+/** Agenda padrão: espalha os treinos pela semana com descanso entre eles. */
+export function defaultSchedule(workouts: Workout[]): ScheduleDay[] {
+  const out: ScheduleDay[] = Array(7).fill(REST_DAY);
+  const ids = workouts.map((w) => w.id);
+  if (!ids.length) return out;
+  // seg=0 … dom=6. Poucos treinos ficam espaçados (seg/qua/sex); muitos preenchem em sequência.
+  const days =
+    ids.length <= 3
+      ? [0, 2, 4]
+      : ids.length === 4
+        ? [0, 1, 3, 4]
+        : [0, 1, 2, 3, 4, 5].slice(0, ids.length);
+  days.forEach((d, i) => {
+    out[d] = ids[i % ids.length];
+  });
+  return out;
+}
+
+/** A agenda do estado, com fallback determinístico (7 itens garantidos). */
+export function getSchedule(state: AppState): ScheduleDay[] {
+  return state.schedule && state.schedule.length === 7
+    ? state.schedule
+    : defaultSchedule(state.workouts);
+}
+
+export interface TodayPlan {
+  workout: Workout | null;
+  isRest: boolean;
+}
+
+/** O que a agenda marca pra hoje: um treino, ou descanso. */
+export function todayPlan(state: AppState): TodayPlan {
+  const dow = (new Date().getDay() + 6) % 7; // 0 = segunda
+  const entry = getSchedule(state)[dow];
+  if (!entry || entry === REST_DAY) return { workout: null, isRest: true };
+  const workout = state.workouts.find((w) => w.id === entry);
+  // dia de treino cujo treino foi apagado: cai na rotação, não vira descanso
+  return { workout: workout ?? nextWorkout(state), isRest: false };
+}
+
+/** Primeira letra livre (A, B, C…) pra um treino novo. */
+export function nextWorkoutLetter(workouts: Workout[]): string {
+  const used = new Set(workouts.map((w) => w.letter.trim().toUpperCase()));
+  for (let i = 0; i < 26; i++) {
+    const letter = String.fromCharCode(65 + i);
+    if (!used.has(letter)) return letter;
+  }
+  return String(workouts.length + 1);
 }
 
 /* ————— coerência plano × realidade ————— */

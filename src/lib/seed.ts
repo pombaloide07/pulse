@@ -12,6 +12,7 @@ import type {
 } from "./types";
 import { addDays, toISO } from "./dates";
 import { defaultTargets, dishGrams, dishMacros } from "./nutrition";
+import { defaultSchedule } from "./logic";
 import { initialsOf } from "./format";
 
 /** PRNG determinístico — o seed sempre gera a mesma história. */
@@ -383,6 +384,7 @@ export function buildFreshState(name: string): AppState {
     version: 3,
     userName: clean,
     workouts: DEFAULT_WORKOUTS,
+    schedule: defaultSchedule(DEFAULT_WORKOUTS),
     sessions: [],
     members: [me],
     activeSessionId: null,
@@ -414,6 +416,7 @@ export function buildSeedState(): AppState {
     version: 3,
     userName: "Visitante",
     workouts,
+    schedule: defaultSchedule(workouts),
     sessions,
     members: [me, ...makeFriends(weeks, rnd)],
     activeSessionId: null,

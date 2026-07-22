@@ -7,13 +7,14 @@ import {
   nextWorkout,
   presentToday,
   sessionsThisWeek,
+  todayPlan,
   weekPresence,
   weekStreak,
 } from "../lib/logic";
 import { EXERCISE_BY_ID } from "../lib/exercises";
 import { dayTotals } from "../lib/nutrition";
 import { fmtInt } from "../lib/format";
-import { Avatar, BigButton, Chip, WeekStrip } from "../components/ui";
+import { Avatar, BigButton, Chip, Sheet, WeekStrip } from "../components/ui";
 import { IconCheck, IconChevronRight, IconDiet, IconPulse } from "../components/icons";
 import { HeaderAccount } from "../components/account";
 import { QuickLogSheet } from "../components/QuickLog";
@@ -23,6 +24,8 @@ export function Hoje() {
   const { state, dispatch } = useStore();
   const navigate = useNavigate();
   const [quickLog, setQuickLog] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [chosenId, setChosenId] = useState<string | null>(null);
 
   const sync = useSync();
   const me = state.members.find((m) => m.isMe)!;
@@ -32,10 +35,14 @@ export function Hoje() {
       : state.members.filter((m) => !m.isMe);
   const friendsToday = friends.filter(presentToday);
   const trainedToday = presentToday(me);
-  const workout = nextWorkout(state);
   const active = state.activeSessionId
     ? state.sessions.find((s) => s.id === state.activeSessionId)
     : null;
+  // treino do dia: o escolhido na hora > o da agenda > a rotação (fallback)
+  const planned = todayPlan(state);
+  const chosen = chosenId ? state.workouts.find((w) => w.id === chosenId) : null;
+  const workout = chosen ?? planned.workout ?? nextWorkout(state);
+  const isRest = planned.isRest && !chosen && !active;
   const streak = weekStreak(me);
   const thisWeek = sessionsThisWeek(me);
   const food = dayTotals(state, todayISO());
@@ -94,37 +101,75 @@ export function Hoje() {
 
       <section className="card today-card rise">
         <div className="today-head">
-          <span className="today-letter serif-num">{workout.letter}</span>
+          <span className={`today-letter serif-num ${isRest ? "today-letter-rest" : ""}`}>
+            {isRest ? "·" : workout.letter}
+          </span>
           <div>
-            <p className="eyebrow">{active ? "Treino em andamento" : "Próximo treino"}</p>
-            <h2>{workout.name}</h2>
+            <p className="eyebrow">
+              {active ? "Treino em andamento" : isRest ? "Hoje é descanso" : "Treino de hoje"}
+            </p>
+            <h2>{active ? workout.name : isRest ? "Dia de recuperação" : workout.name}</h2>
           </div>
         </div>
-        <ul className="today-list">
-          {workout.items.slice(0, 4).map((item) => (
-            <li key={item.exerciseId}>
-              <span>{EXERCISE_BY_ID[item.exerciseId]?.name}</span>
-              <small>
-                {item.sets}×{item.targetReps}
-                {item.targetLoad > 0 && ` · ${item.targetLoad}kg`}
-              </small>
-            </li>
-          ))}
-          {workout.items.length > 4 && (
-            <li className="today-more">
-              + {workout.items.length - 4}{" "}
-              {workout.items.length - 4 === 1 ? "exercício" : "exercícios"}
-            </li>
-          )}
-        </ul>
-        <BigButton onClick={start} tone={trainedToday && !active ? "ink" : "pulse"}>
-          <IconPulse size={20} />
-          {active ? "Continuar treino" : trainedToday ? "Registrar outro treino" : "Começar treino"}
-        </BigButton>
-        {!active && (
-          <button className="today-quicklog" onClick={() => setQuickLog(true)}>
-            Treinou e não registrou? Lançar treino de outro dia
-          </button>
+
+        {isRest ? (
+          <>
+            <p className="today-rest-note">
+              Descanso também constrói — músculo cresce na recuperação. Se quiser mexer o corpo
+              mesmo assim, escolha um treino.
+            </p>
+            <BigButton onClick={() => setPicking(true)} tone="ink">
+              <IconPulse size={20} />
+              Treinar mesmo assim
+            </BigButton>
+            <button className="today-alt" onClick={() => setQuickLog(true)}>
+              Treinou e não registrou? Lançar treino
+            </button>
+          </>
+        ) : (
+          <>
+            <ul className="today-list">
+              {workout.items.slice(0, 4).map((item) => (
+                <li key={item.exerciseId}>
+                  <span>{EXERCISE_BY_ID[item.exerciseId]?.name}</span>
+                  <small>
+                    {item.sets}×{item.targetReps}
+                    {item.targetLoad > 0 && ` · ${item.targetLoad}kg`}
+                  </small>
+                </li>
+              ))}
+              {workout.items.length > 4 && (
+                <li className="today-more">
+                  + {workout.items.length - 4}{" "}
+                  {workout.items.length - 4 === 1 ? "exercício" : "exercícios"}
+                </li>
+              )}
+              {workout.items.length === 0 && (
+                <li className="today-more">Treino sem exercícios — monte ele no Plano.</li>
+              )}
+            </ul>
+            <BigButton onClick={start} tone={trainedToday && !active ? "ink" : "pulse"}>
+              <IconPulse size={20} />
+              {active
+                ? "Continuar treino"
+                : trainedToday
+                  ? "Registrar outro treino"
+                  : "Começar treino"}
+            </BigButton>
+            {!active && (
+              <div className="today-alts">
+                <button className="today-alt" onClick={() => setPicking(true)}>
+                  Fazer outro treino
+                </button>
+                <span className="today-alt-sep" aria-hidden>
+                  ·
+                </span>
+                <button className="today-alt" onClick={() => setQuickLog(true)}>
+                  Lançar treino de outro dia
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -175,6 +220,31 @@ export function Hoje() {
       </button>
 
       {quickLog && <QuickLogSheet onClose={() => setQuickLog(false)} />}
+
+      {picking && (
+        <Sheet title="Escolher treino de hoje" onClose={() => setPicking(false)}>
+          <div className="today-picker">
+            {state.workouts.map((w) => (
+              <button
+                key={w.id}
+                className={`today-pick ${workout.id === w.id ? "today-pick-on" : ""}`}
+                onClick={() => {
+                  setChosenId(w.id);
+                  setPicking(false);
+                }}
+              >
+                <span className="today-pick-letter serif-num">{w.letter}</span>
+                <div className="today-pick-info">
+                  <b>{w.name}</b>
+                  <small>
+                    {w.items.length} {w.items.length === 1 ? "exercício" : "exercícios"}
+                  </small>
+                </div>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
     </main>
   );
 }

@@ -11,6 +11,71 @@
   padding: 0 4px;
 }
 
+/* ——— agenda semanal ——— */
+
+.week-plan {
+  padding: 16px 14px 14px;
+}
+
+.wp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.wp-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 2px 9px;
+  border-radius: 13px;
+  border: 1.5px solid var(--line);
+  background: var(--card-warm);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.wp-day:active {
+  border-color: var(--ink-3);
+}
+
+.wp-dow {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.wp-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.wp-rest .wp-mark {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1.5px dashed var(--line);
+  font-style: normal;
+}
+
+.wp-legend {
+  margin-top: 11px;
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 0 2px;
+}
+
 .plano-card {
   display: flex;
   align-items: center;

@@ -32,6 +32,10 @@ export interface Workout {
   items: PlanItem[];
 }
 
+/** Um dia no plano semanal: o id de um treino, ou "rest" (descanso). */
+export type ScheduleDay = string;
+export const REST_DAY = "rest";
+
 export interface SetLog {
   load: number;
   reps: number;
@@ -162,6 +166,8 @@ export interface AppState {
   version: number;
   userName: string;
   workouts: Workout[];
+  /** agenda semanal seg→dom (7 itens); cada dia é um workoutId ou "rest" */
+  schedule?: ScheduleDay[];
   sessions: Session[];
   members: Member[];
   /** id da sessão em andamento, se houver */

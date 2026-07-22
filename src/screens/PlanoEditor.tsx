@@ -14,14 +14,19 @@ export function PlanoEditor() {
   const navigate = useNavigate();
   const [picking, setPicking] = useState(false);
   const [filter, setFilter] = useState<string>("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const workout = state.workouts.find((w) => w.id === workoutId);
   const inPlan = useMemo(() => new Set(workout?.items.map((i) => i.exerciseId)), [workout]);
+  const canDelete = state.workouts.length > 1;
 
   if (!workout) {
     return (
       <main className="screen">
         <p>Treino não encontrado.</p>
+        <BigButton onClick={() => navigate("/treino", { replace: true })} tone="ink">
+          Voltar pro plano
+        </BigButton>
       </main>
     );
   }
@@ -50,14 +55,29 @@ export function PlanoEditor() {
         <button className="editor-back" onClick={() => navigate("/treino")} aria-label="Voltar">
           <IconBack />
         </button>
-        <div>
-          <p className="eyebrow">Treino {workout.letter}</p>
+        <div className="editor-titles">
           <input
-            className="editor-name"
-            value={workout.name}
-            onChange={(e) => dispatch({ type: "UPDATE_WORKOUT", workout: { ...workout, name: e.target.value } })}
-            aria-label="Nome do treino"
+            className="editor-letter"
+            value={workout.letter}
+            maxLength={2}
+            onChange={(e) =>
+              dispatch({
+                type: "UPDATE_WORKOUT",
+                workout: { ...workout, letter: e.target.value.toUpperCase() },
+              })
+            }
+            aria-label="Tipo do treino (letra)"
           />
+          <div className="editor-title-text">
+            <p className="eyebrow">Editando treino</p>
+            <input
+              className="editor-name"
+              value={workout.name}
+              placeholder="Nome do treino"
+              onChange={(e) => dispatch({ type: "UPDATE_WORKOUT", workout: { ...workout, name: e.target.value } })}
+              aria-label="Nome do treino"
+            />
+          </div>
         </div>
       </header>
 
@@ -116,6 +136,34 @@ export function PlanoEditor() {
         <IconPlus size={19} />
         Adicionar exercício
       </BigButton>
+
+      {canDelete && (
+        <button className="editor-delete" onClick={() => setConfirmDelete(true)}>
+          Excluir treino {workout.letter}
+        </button>
+      )}
+
+      {confirmDelete && (
+        <Sheet onClose={() => setConfirmDelete(false)}>
+          <h2>Excluir treino {workout.letter}?</h2>
+          <p>
+            O histórico dos treinos já feitos continua na progressão. Os dias da semana que
+            usavam ele viram descanso.
+          </p>
+          <BigButton
+            onClick={() => {
+              dispatch({ type: "DELETE_WORKOUT", id: workout.id });
+              navigate("/treino", { replace: true });
+            }}
+            tone="pulse"
+          >
+            Excluir treino
+          </BigButton>
+          <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
+            Cancelar
+          </BigButton>
+        </Sheet>
+      )}
 
       {picking && (
         <Sheet title="Adicionar exercício" onClose={() => setPicking(false)} className="picker">

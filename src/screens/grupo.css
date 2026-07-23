@@ -366,3 +366,64 @@
 }
 
 /* segmento Turma | Desafios | Amigos: usa .th-seg .th-seg-3 (global.css) */
+
+/* ——— barra da turma: ativa, trocador, código e ações ——— */
+
+.turma-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.turma-bar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.turma-bar-head b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 560;
+  margin-top: 2px;
+}
+
+.turma-edit {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pulse-deep);
+  background: var(--pulse-soft);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+}
+
+/* trocador: só aparece com mais de uma turma */
+.turma-switch {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.turma-switch::-webkit-scrollbar {
+  display: none;
+}
+
+.turma-code {
+  font-size: 12.5px;
+  color: var(--ink-cap);
+}
+
+.turma-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px dashed var(--line-soft);
+  padding-top: 4px;
+}

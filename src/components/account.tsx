@@ -362,6 +362,66 @@ export function GroupSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ————— cartão de conexão: conta → turma —————
+   Compartilhado entre as abas Turma e Desafios: o pré-requisito é o mesmo
+   (conta + turma), então a porta de entrada precisa ser a mesma nas duas —
+   antes ela existia só na Turma e a aba Desafios virava um beco sem saída. */
+
+export function ConnectionCard({ where = "turma" }: { where?: "turma" | "desafios" }) {
+  const sync = useSync();
+  const [sheet, setSheet] = useState<"login" | "grupo" | null>(null);
+  const emDesafios = where === "desafios";
+
+  if (!sync.session) {
+    return (
+      <>
+        <button className="card conn-card rise" onClick={() => setSheet("login")}>
+          <span className="conn-dot" />
+          <div>
+            <b>{emDesafios ? "Desafio de verdade precisa de conta" : "Entrar no grupo de verdade"}</b>
+            <small>
+              {emDesafios
+                ? "abaixo é só demonstração — entre pra criar um desafio com a sua turma"
+                : "e-mail e senha · seus dados sincronizam na nuvem"}
+            </small>
+          </div>
+        </button>
+        {sheet === "login" && <LoginSheet onClose={() => setSheet(null)} />}
+      </>
+    );
+  }
+
+  if (!sync.group) {
+    return (
+      <>
+        <button className="card conn-card rise" onClick={() => setSheet("grupo")}>
+          <span className="conn-dot conn-dot-on" />
+          <div>
+            <b>{emDesafios ? "Desafios acontecem dentro de uma turma" : "Conectado — falta o grupo"}</b>
+            <small>crie a sua ou entre com o código de um amigo</small>
+          </div>
+        </button>
+        {sheet === "grupo" && <GroupSheet onClose={() => setSheet(null)} />}
+      </>
+    );
+  }
+
+  return (
+    <div className="card conn-card conn-card-ok rise">
+      <span className="conn-dot conn-dot-on" />
+      <div>
+        <b>{sync.group.name}</b>
+        <small>
+          código de convite: <b className="conn-code">{sync.group.invite_code}</b>
+        </small>
+      </div>
+      <button className="conn-out" onClick={() => sync.signOut()}>
+        sair
+      </button>
+    </div>
+  );
+}
+
 /* ————— modo demo (deslogado): entrar ou criar conta ————— */
 
 function DemoSheet({ onClose }: { onClose: () => void }) {

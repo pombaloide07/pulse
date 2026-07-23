@@ -180,6 +180,10 @@ export interface Challenge {
   startsOn: string;
   endsOn: string;
   createdBy?: string;
+  /** código pra alguém de fora entrar no desafio (só no grupo real) */
+  inviteCode?: string;
+  /** turma dona do desafio — pode não ser a ativa (entrei por código) */
+  groupId?: string;
 }
 
 export interface AppState {

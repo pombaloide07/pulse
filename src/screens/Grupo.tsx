@@ -4,9 +4,9 @@ import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
 import { presentToday, sessionsThisWeek, weekPresence, weekStreak } from "../lib/logic";
 import type { Member } from "../lib/types";
-import { Avatar, Chip } from "../components/ui";
+import { Avatar, BigButton, Chip, Sheet } from "../components/ui";
 import { IconCheck, IconUp } from "../components/icons";
-import { LoginSheet, GroupSheet } from "../components/account";
+import { ConnectionCard, GroupSheet } from "../components/account";
 import { DesafiosSection } from "../components/challenges";
 import { AmigosSection } from "../components/friendsTab";
 import { WEEKDAY_LETTERS } from "../lib/dates";
@@ -105,7 +105,7 @@ function TurmaSection({ members }: { members: Member[] }) {
 
   return (
     <>
-      <ConnectionCard />
+      <TurmaBar />
 
       <section className="card grupo-week rise">
         <p className="eyebrow">A semana de cada um</p>
@@ -202,54 +202,94 @@ function TurmaSection({ members }: { members: Member[] }) {
   );
 }
 
-/* ————— conexão: login e grupo real ————— */
+/* ————— barra da turma: qual é a ativa, trocar, renomear e convidar ————— */
 
-function ConnectionCard() {
+function TurmaBar() {
   const sync = useSync();
-  const [sheet, setSheet] = useState<"login" | "grupo" | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [outra, setOutra] = useState(false);
+  const groups = sync.myGroups ?? [];
 
-  if (!sync.session) {
-    return (
-      <>
-        <button className="card conn-card rise" onClick={() => setSheet("login")}>
-          <span className="conn-dot" />
-          <div>
-            <b>Entrar no grupo de verdade</b>
-            <small>e-mail e senha · seus dados sincronizam na nuvem</small>
-          </div>
-        </button>
-        {sheet === "login" && <LoginSheet onClose={() => setSheet(null)} />}
-      </>
-    );
-  }
-
-  if (!sync.group) {
-    return (
-      <>
-        <button className="card conn-card rise" onClick={() => setSheet("grupo")}>
-          <span className="conn-dot conn-dot-on" />
-          <div>
-            <b>Conectado — falta o grupo</b>
-            <small>crie o seu ou entre com o código de um amigo</small>
-          </div>
-        </button>
-        {sheet === "grupo" && <GroupSheet onClose={() => setSheet(null)} />}
-      </>
-    );
-  }
+  // sem conta ou sem turma, a porta de entrada resolve
+  // (ConnectionCard vive em components/account.tsx — a aba Desafios usa o mesmo)
+  if (!sync.session || !sync.group) return <ConnectionCard />;
 
   return (
-    <div className="card conn-card conn-card-ok rise">
-      <span className="conn-dot conn-dot-on" />
-      <div>
-        <b>{sync.group.name}</b>
-        <small>
+    <>
+      <section className="card turma-bar rise">
+        <div className="turma-bar-head">
+          <div>
+            <p className="eyebrow">Sua turma</p>
+            <b>{sync.group.name}</b>
+          </div>
+          <button className="turma-edit" onClick={() => setEditing(true)}>
+            editar
+          </button>
+        </div>
+
+        {/* participa de mais de uma? troca aqui qual está ativa */}
+        {groups.length > 1 && (
+          <div className="turma-switch">
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                className={`pf ${g.id === sync.group!.id ? "pf-on" : ""}`}
+                onClick={() => sync.setActiveGroup(g.id)}
+              >
+                {g.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="turma-code">
           código de convite: <b className="conn-code">{sync.group.invite_code}</b>
-        </small>
-      </div>
-      <button className="conn-out" onClick={() => sync.signOut()}>
-        sair
-      </button>
-    </div>
+        </p>
+
+        <div className="turma-actions">
+          <button className="ch-code-link" onClick={() => setOutra(true)}>
+            Entrar em outra turma
+          </button>
+          <button className="conn-out" onClick={() => sync.signOut()}>
+            sair da conta
+          </button>
+        </div>
+      </section>
+
+      {editing && <TurmaEditSheet onClose={() => setEditing(false)} />}
+      {outra && <GroupSheet onClose={() => setOutra(false)} />}
+    </>
+  );
+}
+
+function TurmaEditSheet({ onClose }: { onClose: () => void }) {
+  const sync = useSync();
+  const [name, setName] = useState(sync.group?.name ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await sync.renameGroup(name);
+    setBusy(false);
+    if (err) setError(err);
+    else onClose();
+  };
+
+  return (
+    <Sheet title="Editar turma" onClose={onClose}>
+      <p className="conn-note">Qualquer membro pode ajeitar o nome da turma.</p>
+      <label className="field-l">
+        <span className="field-l-label">Nome da turma</span>
+        <span className="field-l-box">
+          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </span>
+      </label>
+      {error && <p className="conn-error">{error}</p>}
+      <BigButton onClick={save} tone="pulse" disabled={busy || name.trim().length < 2}>
+        {busy ? "Salvando…" : "Salvar"}
+      </BigButton>
+    </Sheet>
   );
 }

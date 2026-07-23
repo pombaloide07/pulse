@@ -4,6 +4,7 @@ import { useSync, type CheckinInfo } from "../lib/sync";
 import type { Challenge, Member } from "../lib/types";
 import { currentChallenge, readChallenge } from "../lib/logic";
 import { WEEKDAY_SHORT, addDays, diffDays, formatShort, fromISO, toISO, todayISO } from "../lib/dates";
+import { ConnectionCard } from "./account";
 import { Avatar, BigButton, Chip, Sheet } from "./ui";
 import { IconCheck, IconMedal, IconPlus } from "./icons";
 import "./challenges.css";
@@ -18,8 +19,15 @@ import "./challenges.css";
 export function DesafiosSection({ members }: { members: Member[] }) {
   const sync = useSync();
   const real = !!sync.session && !!sync.group;
-  if (!real) return <DemoDesafio members={members} />;
-  return <RealDesafios members={members} />;
+  if (real) return <RealDesafios members={members} />;
+  // sem turma o desafio não existe de verdade: mostra a porta de entrada
+  // (conta/grupo) e deixa a demo abaixo, rotulada como demonstração
+  return (
+    <>
+      <ConnectionCard where="desafios" />
+      <DemoDesafio members={members} />
+    </>
+  );
 }
 
 /* ————— desafios reais (foto) ————— */
@@ -70,11 +78,13 @@ function RealDesafios({ members }: { members: Member[] }) {
   );
 
   const challenges = sync.challenges ?? [];
+  const participants = sync.participants ?? {};
   const active = challenges.filter((c) => c.startsOn <= today && today <= c.endsOn);
   const [selId, setSelId] = useState<string | null>(null);
   const sel = challenges.find((c) => c.id === selId) ?? active[0] ?? challenges[0] ?? null;
 
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [checking, setChecking] = useState(false);
   const checkins = sync.checkins ?? [];
 
@@ -88,25 +98,45 @@ function RealDesafios({ members }: { members: Member[] }) {
     return set;
   }, [checkins, uid, today]);
 
+  // o check-in só vale pros desafios ativos em que EU entrei
+  const myActive = useMemo(
+    () => active.filter((c) => (participants[c.id] ?? []).includes(uid)),
+    [active, participants, uid]
+  );
+
   if (!challenges.length) {
     return (
       <>
-        <button className="card conn-card rise" onClick={() => setCreating(true)}>
-          <span className="conn-dot" />
-          <div>
-            <b>Nenhum desafio rolando</b>
-            <small>prazo + grupo + check-in com foto — o empurrão que funciona</small>
-          </div>
-        </button>
+        <section className="card ch-empty rise">
+          <p className="eyebrow">Desafios da turma</p>
+          <h2>Nenhum desafio rolando</h2>
+          <p>
+            Prazo + turma + check-in com foto — o empurrão que funciona. Crie o
+            primeiro e chame a galera pra entrar.
+          </p>
+          <BigButton onClick={() => setCreating(true)} tone="pulse">
+            <IconPlus size={18} />
+            Criar desafio
+          </BigButton>
+          <button className="ch-code-link" onClick={() => setJoining(true)}>
+            Tenho um código de desafio
+          </button>
+        </section>
         {creating && (
           <DesafioSheet onClose={() => setCreating(false)} onCreate={sync.createChallenge} />
         )}
+        {joining && <JoinByCodeSheet onClose={() => setJoining(false)} />}
       </>
     );
   }
 
   return (
     <div className="desafios">
+      {/* diz de quem é o desafio e a regra do opt-in — era a dúvida principal */}
+      <p className="ch-scope rise">
+        Desafios da turma <b>{sync.group!.name}</b> — cada um escolhe se entra.
+      </p>
+
       {/* trilha de desafios: transite entre eles num toque */}
       <div className="ch-tabs rise">
         {challenges.map((c) => {
@@ -132,17 +162,31 @@ function RealDesafios({ members }: { members: Member[] }) {
           challenge={sel}
           members={realMembers}
           checkins={checkins}
+          participantIds={participants[sel.id] ?? []}
+          meId={uid}
           myCheckedToday={checkedTodayIds.has(sel.id)}
           onCheckin={() => setChecking(true)}
+          onJoin={() => sync.joinChallenge(sel.id)}
+          onLeave={() => sync.leaveChallenge(sel.id)}
         />
       )}
+
+      {/* criar desafio é ação de primeira classe — não só o "+" da trilha */}
+      <BigButton onClick={() => setCreating(true)} tone="ghost">
+        <IconPlus size={18} />
+        Criar outro desafio
+      </BigButton>
+      <button className="ch-code-link" onClick={() => setJoining(true)}>
+        Tenho um código de desafio
+      </button>
 
       {creating && (
         <DesafioSheet onClose={() => setCreating(false)} onCreate={sync.createChallenge} />
       )}
+      {joining && <JoinByCodeSheet onClose={() => setJoining(false)} />}
       {checking && (
         <CheckinSheet
-          activeChallenges={active}
+          activeChallenges={myActive}
           checkedTodayIds={checkedTodayIds}
           preferredId={sel?.id ?? null}
           onClose={() => setChecking(false)}
@@ -156,14 +200,23 @@ function SelectedChallenge({
   challenge,
   members,
   checkins,
+  participantIds,
+  meId,
   myCheckedToday,
   onCheckin,
+  onJoin,
+  onLeave,
 }: {
   challenge: Challenge;
   members: Member[];
   checkins: CheckinInfo[];
+  /** quem entrou neste desafio — participar é opt-in */
+  participantIds: string[];
+  meId: string;
   myCheckedToday: boolean;
   onCheckin: () => void;
+  onJoin: () => Promise<string | null>;
+  onLeave: () => Promise<string | null>;
 }) {
   const today = todayISO();
   const ended = today > challenge.endsOn;
@@ -171,9 +224,26 @@ function SelectedChallenge({
   const totalDays = diffDays(challenge.endsOn, challenge.startsOn) + 1;
   const dayNumber = Math.min(totalDays, Math.max(1, diffDays(cursor, challenge.startsOn) + 1));
 
+  const sync = useSync();
+  const iAmIn = participantIds.includes(meId);
+  const iCreated = challenge.createdBy === meId;
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const toggleJoin = async () => {
+    setBusy(true);
+    await (iAmIn ? onLeave() : onJoin());
+    setBusy(false);
+  };
+
+  // o ranking é só de quem entrou — quem não entrou não aparece
+  const roster = useMemo(
+    () => members.filter((m) => participantIds.includes(m.id)),
+    [members, participantIds]
+  );
   const standings = useMemo(
-    () => photoStandings(challenge, members, checkins),
-    [challenge, members, checkins]
+    () => photoStandings(challenge, roster, checkins),
+    [challenge, roster, checkins]
   );
   const leader = standings[0]?.checkins ?? 0;
   const champions = ended && leader > 0 ? standings.filter((s) => s.checkins === leader) : [];
@@ -209,12 +279,20 @@ function SelectedChallenge({
           </p>
           <h2>{challenge.name}</h2>
         </div>
-        {champions.length > 0 && (
-          <Chip tone="ambar">
-            <IconMedal size={13} />
-            {champions.map((c) => c.member.name).join(" e ")}
-          </Chip>
-        )}
+        <div className="ch-head-actions">
+          {champions.length > 0 && (
+            <Chip tone="ambar">
+              <IconMedal size={13} />
+              {champions.map((c) => c.member.name).join(" e ")}
+            </Chip>
+          )}
+          {/* só quem criou edita — a RLS confirma do lado do banco */}
+          {iCreated && (
+            <button className="ch-edit" onClick={() => setEditing(true)}>
+              editar
+            </button>
+          )}
+        </div>
       </header>
 
       {!ended && (
@@ -223,16 +301,49 @@ function SelectedChallenge({
         </div>
       )}
 
-      {!ended && (
-        <BigButton onClick={onCheckin} tone={myCheckedToday ? "ink" : "pulse"}>
-          {myCheckedToday ? (
-            <>
-              <IconCheck size={18} stroke={2.8} /> Check-in de hoje feito
-            </>
-          ) : (
-            <>📸 Fazer check-in de hoje</>
-          )}
-        </BigButton>
+      <p className="ch-part">
+        {participantIds.length === 0
+          ? "Ninguém entrou ainda — seja o primeiro."
+          : `${participantIds.length} ${
+              participantIds.length === 1 ? "pessoa entrou" : "pessoas entraram"
+            }${iAmIn ? " · você está dentro" : ""}`}
+      </p>
+
+      {!ended && !iAmIn && (
+        <div className="ch-join">
+          <p>
+            Você não está neste desafio. Entre pra aparecer no ranking e poder fazer
+            check-in.
+          </p>
+          <BigButton onClick={toggleJoin} tone="pulse" disabled={busy}>
+            {busy ? "Entrando…" : "Entrar no desafio"}
+          </BigButton>
+        </div>
+      )}
+
+      {!ended && iAmIn && (
+        <>
+          <BigButton onClick={onCheckin} tone={myCheckedToday ? "ink" : "pulse"}>
+            {myCheckedToday ? (
+              <>
+                <IconCheck size={18} stroke={2.8} /> Check-in de hoje feito
+              </>
+            ) : (
+              <>📸 Fazer check-in de hoje</>
+            )}
+          </BigButton>
+          <button className="ch-add-people" onClick={() => setAdding(true)}>
+            <IconPlus size={16} stroke={2.4} />
+            Adicionar pessoas
+          </button>
+          <button className="ch-leave" onClick={toggleJoin} disabled={busy}>
+            {busy ? "Saindo…" : "Sair do desafio"}
+          </button>
+        </>
+      )}
+
+      {standings.length === 0 && (
+        <p className="ch-feed-empty">Ninguém entrou neste desafio ainda.</p>
       )}
 
       <ol className="desafio-rank">
@@ -305,7 +416,217 @@ function SelectedChallenge({
           ? "Quem apareceu, ganhou — e todo mundo que apareceu também."
           : "1 check-in por dia, com foto. A mesma foto pode valer pra mais de um desafio — você escolhe."}
       </p>
+
+      {editing && (
+        <EditChallengeSheet challenge={challenge} onClose={() => setEditing(false)} />
+      )}
+      {adding && (
+        <AddPeopleSheet
+          challenge={challenge}
+          members={members}
+          participantIds={participantIds}
+          onAdd={(userId) => sync.addParticipant(challenge.id, userId)}
+          onClose={() => setAdding(false)}
+        />
+      )}
     </section>
+  );
+}
+
+/* ————— editar desafio (só quem criou passa na RLS) ————— */
+
+function EditChallengeSheet({
+  challenge,
+  onClose,
+}: {
+  challenge: Challenge;
+  onClose: () => void;
+}) {
+  const sync = useSync();
+  const [name, setName] = useState(challenge.name);
+  const [endsOn, setEndsOn] = useState(challenge.endsOn);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await sync.updateChallenge(challenge.id, { name, endsOn });
+    setBusy(false);
+    if (err) setError(err);
+    else onClose();
+  };
+
+  return (
+    <Sheet title="Editar desafio" onClose={onClose}>
+      <label className="field-l">
+        <span className="field-l-label">Nome</span>
+        <span className="field-l-box">
+          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </span>
+      </label>
+      <label className="field-l">
+        <span className="field-l-label">Termina em</span>
+        <span className="field-l-box">
+          <input
+            type="date"
+            value={endsOn}
+            min={challenge.startsOn}
+            onChange={(e) => setEndsOn(e.target.value)}
+          />
+        </span>
+      </label>
+      {error && <p className="conn-error">{error}</p>}
+      <BigButton onClick={save} tone="pulse" disabled={busy || name.trim().length < 2}>
+        {busy ? "Salvando…" : "Salvar"}
+      </BigButton>
+    </Sheet>
+  );
+}
+
+/* ————— adicionar pessoas: código, turma ou amigo ————— */
+
+function AddPeopleSheet({
+  challenge,
+  members,
+  participantIds,
+  onAdd,
+  onClose,
+}: {
+  challenge: Challenge;
+  members: Member[];
+  participantIds: string[];
+  onAdd: (userId: string) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const sync = useSync();
+  const [copied, setCopied] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const foraDaTurma = members.filter((m) => !m.isMe && !participantIds.includes(m.id));
+  const amigosFora = (sync.friendList ?? []).filter(
+    (f) =>
+      f.status === "accepted" &&
+      !participantIds.includes(f.id) &&
+      !members.some((m) => m.id === f.id)
+  );
+
+  const add = async (userId: string) => {
+    setBusyId(userId);
+    setError(null);
+    const err = await onAdd(userId);
+    setBusyId(null);
+    if (err) setError(err);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(challenge.inviteCode ?? "");
+      setCopied(true);
+    } catch {
+      /* sem clipboard: o código está na tela pra copiar na mão */
+    }
+  };
+
+  return (
+    <Sheet title="Adicionar pessoas" onClose={onClose}>
+      <p className="conn-note">
+        Três jeitos: mandar o código, chamar alguém da turma ou um amigo.
+      </p>
+
+      <div className="ap-code">
+        <div>
+          <span className="field-l-label">Código do desafio</span>
+          <b className="conn-code">{challenge.inviteCode ?? "—"}</b>
+        </div>
+        <button className="acc-copy" onClick={copy}>
+          {copied ? "copiado" : "copiar"}
+        </button>
+      </div>
+
+      {error && <p className="conn-error">{error}</p>}
+
+      <p className="eyebrow">Da sua turma</p>
+      {foraDaTurma.length === 0 ? (
+        <p className="ch-feed-empty">Todo mundo da turma já está no desafio.</p>
+      ) : (
+        <ul className="ap-list">
+          {foraDaTurma.map((m) => (
+            <li key={m.id}>
+              <Avatar initials={m.initials} color={m.color} photoUrl={m.avatarUrl} size={32} />
+              <span>{m.name}</span>
+              <button className="ap-add" onClick={() => add(m.id)} disabled={busyId === m.id}>
+                {busyId === m.id ? "…" : "adicionar"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="eyebrow">Amigos</p>
+      {amigosFora.length === 0 ? (
+        <p className="ch-feed-empty">Nenhum amigo de fora da turma pra adicionar.</p>
+      ) : (
+        <ul className="ap-list">
+          {amigosFora.map((f) => (
+            <li key={f.id}>
+              <Avatar
+                initials={f.initials}
+                color={f.color}
+                photoUrl={f.avatarUrl ?? undefined}
+                size={32}
+              />
+              <span>{f.name}</span>
+              <button className="ap-add" onClick={() => add(f.id)} disabled={busyId === f.id}>
+                {busyId === f.id ? "…" : "adicionar"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Sheet>
+  );
+}
+
+/* ————— entrar num desafio pelo código ————— */
+
+function JoinByCodeSheet({ onClose }: { onClose: () => void }) {
+  const sync = useSync();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const go = async () => {
+    setBusy(true);
+    setError(null);
+    const err = await sync.joinChallengeByCode(code);
+    setBusy(false);
+    if (err) setError(err);
+    else onClose();
+  };
+
+  return (
+    <Sheet title="Entrar com código" onClose={onClose}>
+      <p className="conn-note">
+        Cole o código que te mandaram — funciona até pra desafio de outra turma.
+      </p>
+      <label className="field-l">
+        <span className="field-l-label">Código do desafio</span>
+        <span className="field-l-box">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="A1B2C3D4"
+            autoFocus
+          />
+        </span>
+      </label>
+      {error && <p className="conn-error">{error}</p>}
+      <BigButton onClick={go} tone="pulse" disabled={busy || code.trim().length < 4}>
+        {busy ? "Entrando…" : "Entrar no desafio"}
+      </BigButton>
+    </Sheet>
   );
 }
 
@@ -580,22 +901,21 @@ function DemoDesafio({ members }: { members: Member[] }) {
             dá pra ter vários desafios ao mesmo tempo.
           </p>
 
-          {view.ended && (
-            <BigButton onClick={() => setCreating(true)} tone="ghost">
-              <IconPlus size={18} />
-              Novo desafio
-            </BigButton>
-          )}
         </section>
       ) : (
-        <button className="card conn-card rise" onClick={() => setCreating(true)}>
-          <span className="conn-dot" />
-          <div>
-            <b>Nenhum desafio rolando</b>
-            <small>prazo + grupo + check-in — o empurrão que funciona</small>
-          </div>
-        </button>
+        <section className="card ch-empty rise">
+          <p className="eyebrow">Desafio de demonstração</p>
+          <h2>Nenhum desafio rolando</h2>
+          <p>Prazo + turma + check-in — o empurrão que funciona.</p>
+        </section>
       )}
+
+      {/* sempre disponível: antes o criar só aparecia com o desafio encerrado,
+          o que deixava a demo num beco sem saída */}
+      <BigButton onClick={() => setCreating(true)} tone="ghost">
+        <IconPlus size={18} />
+        Criar desafio de exemplo
+      </BigButton>
 
       {creating && <DesafioSheet onClose={() => setCreating(false)} onCreate={createLocal} />}
     </>

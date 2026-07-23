@@ -234,3 +234,183 @@
   color: var(--ink-cap);
   padding: 0 2px 6px;
 }
+
+/* ——— opt-in: de quem é o desafio e quem entrou ——— */
+
+/* escopo: liga o desafio à turma e enuncia a regra do opt-in */
+.ch-scope {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-cap);
+  padding: 0 4px;
+}
+
+.ch-scope b {
+  color: var(--ink-2);
+  font-weight: 650;
+}
+
+/* estado sem desafio: agora carrega o próprio CTA de criar */
+.ch-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ch-empty h2 {
+  font-size: 22px;
+}
+
+.ch-empty p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ch-empty .bigbtn {
+  margin-top: 4px;
+}
+
+/* quantas pessoas entraram neste desafio */
+.ch-part {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-cap);
+}
+
+/* convite pra entrar (quem ainda não participa) */
+.ch-join {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 14px;
+}
+
+.ch-join p {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* sair do desafio: ação secundária, discreta */
+.ch-leave {
+  align-self: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-cap);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+  padding: 6px;
+}
+
+.ch-leave:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ——— editar desafio e adicionar pessoas ——— */
+
+.ch-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ch-edit {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pulse-deep);
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  background: var(--pulse-soft);
+}
+
+.ch-add-people {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-2);
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--paper-deep);
+}
+
+/* "tenho um código" — entrada discreta pra desafio de outra turma */
+.ch-code-link {
+  align-self: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+  padding: 8px;
+}
+
+/* código do desafio dentro do sheet de adicionar */
+.ap-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+
+.ap-code .conn-code {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.ap-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--line-soft);
+}
+
+.ap-list li:last-child {
+  border-bottom: none;
+}
+
+.ap-list li span {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ap-add {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pulse-deep);
+  background: var(--pulse-soft);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+}
+
+.ap-add:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

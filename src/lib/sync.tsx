@@ -74,6 +74,13 @@ interface SyncValue {
   friends: Member[] | null;
   /** desafios do grupo real; null = carregando/offline */
   challenges: Challenge[] | null;
+  /** quem entrou em cada desafio (challengeId → userIds); null = carregando */
+  participants: Record<string, string[]> | null;
+  /** todas as turmas que participo — alimenta o seletor de turma ativa */
+  myGroups: GroupInfo[] | null;
+  setActiveGroup: (groupId: string) => Promise<string | null>;
+  /** renomear a turma ativa (qualquer membro pode) */
+  renameGroup: (name: string) => Promise<string | null>;
   /** logado com conta nova (sem estado na nuvem) — precisa escolher o nome */
   needsOnboarding: boolean;
   /** veio de um link de recuperação de senha — precisa definir a nova */
@@ -88,6 +95,15 @@ interface SyncValue {
   createGroup: (name: string) => Promise<string | null>;
   joinGroup: (code: string) => Promise<string | null>;
   createChallenge: (name: string, days: number) => Promise<string | null>;
+  /** participar é opt-in: entra/sai do desafio explicitamente */
+  joinChallenge: (challengeId: string) => Promise<string | null>;
+  leaveChallenge: (challengeId: string) => Promise<string | null>;
+  /** editar nome/prazo do desafio (só quem criou passa na RLS) */
+  updateChallenge: (id: string, patch: { name?: string; endsOn?: string }) => Promise<string | null>;
+  /** entrar num desafio pelo código (mesmo sendo de outra turma) */
+  joinChallengeByCode: (code: string) => Promise<string | null>;
+  /** trazer alguém da turma ou um amigo pro desafio */
+  addParticipant: (challengeId: string, userId: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   /* perfil: foto e código de amizade */
   myAvatarUrl: string | null;
@@ -146,6 +162,8 @@ interface ChallengeRow {
   starts_on: string;
   ends_on: string;
   created_by: string | null;
+  invite_code?: string | null;
+  group_id?: string | null;
 }
 
 function rowToChallenge(row: ChallengeRow): Challenge {
@@ -155,8 +173,12 @@ function rowToChallenge(row: ChallengeRow): Challenge {
     startsOn: row.starts_on,
     endsOn: row.ends_on,
     createdBy: row.created_by ?? undefined,
+    inviteCode: row.invite_code ?? undefined,
+    groupId: row.group_id ?? undefined,
   };
 }
+
+const CHALLENGE_COLS = "id,name,starts_on,ends_on,created_by,invite_code,group_id";
 
 const FRIEND_COLORS = ["#2f6b52", "#d9950f", "#4f7fa3", "#a05fa3", "#c2402a"];
 
@@ -167,6 +189,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [friends, setFriends] = useState<Member[] | null>(null);
   const [challenges, setChallenges] = useState<Challenge[] | null>(null);
+  const [participants, setParticipants] = useState<Record<string, string[]> | null>(null);
+  const [myGroups, setMyGroups] = useState<GroupInfo[] | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [needsNewPassword, setNeedsNewPassword] = useState(false);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
@@ -239,6 +263,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setGroup(null);
       setFriends(null);
       setChallenges(null);
+      setParticipants(null);
+      setMyGroups(null);
       setNeedsOnboarding(false);
       setMyAvatarUrl(null);
       setMyFriendCode(null);
@@ -400,13 +426,45 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const loadChallenges = useCallback(async () => {
     if (!session || !group) return;
+    // sem filtro de turma: a RLS já entrega os desafios das minhas turmas
+    // MAIS os que eu entrei por código (que podem ser de outra turma)
     const { data } = await supabase
       .from("challenges")
-      .select("id,name,starts_on,ends_on,created_by")
-      .eq("group_id", group.id)
+      .select(CHALLENGE_COLS)
       .order("starts_on", { ascending: false });
     if (data) setChallenges(data.map(rowToChallenge));
   }, [session, group]);
+
+  /* quem entrou em cada desafio — a RLS já limita aos desafios do meu grupo */
+  const loadParticipants = useCallback(async () => {
+    if (!session || !group) return;
+    const { data, error } = await supabase
+      .from("challenge_participants")
+      .select("challenge_id,user_id");
+    if (error) {
+      console.warn("participants fetch:", error.message);
+      return;
+    }
+    const byChallenge: Record<string, string[]> = {};
+    for (const r of data ?? []) {
+      (byChallenge[r.challenge_id] ??= []).push(r.user_id);
+    }
+    setParticipants(byChallenge);
+  }, [session, group]);
+
+  /* todas as turmas que participo — a RLS entrega as minhas (memberships) */
+  const loadMyGroups = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from("groups")
+      .select("id,name,invite_code")
+      .order("created_at");
+    if (error) {
+      console.warn("groups fetch:", error.message);
+      return;
+    }
+    setMyGroups(data ?? []);
+  }, [session]);
 
   /* check-ins visíveis (meus + grupo + amigos) — a RLS já filtra */
   const loadCheckins = useCallback(async () => {
@@ -472,6 +530,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (!session || !group) return;
     loadFriends();
     loadChallenges();
+    loadParticipants();
     const channel = supabase
       .channel("grupo-live")
       // presence: a RLS já entrega só as linhas do grupo; filtrar por membro
@@ -491,11 +550,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         },
         () => loadChallenges()
       )
+      // entrar/sair de um desafio reflete pro grupo sem refresh
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "challenge_participants" },
+        () => loadParticipants()
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, group, loadFriends, loadChallenges]);
+  }, [session, group, loadFriends, loadChallenges, loadParticipants]);
+
+  /* minhas turmas: alimenta o seletor; recarrega ao trocar a ativa ou entrar
+     numa turma nova (o grupo ativo muda e o efeito re-roda) */
+  useEffect(() => {
+    if (!session) return;
+    loadMyGroups();
+  }, [session, group, loadMyGroups]);
 
   /* check-ins + amizades: valem mesmo sem grupo (amigos são outra rede) */
   useEffect(() => {
@@ -703,7 +775,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           ends_on: toISO(addDays(new Date(), days - 1)),
           created_by: session.user.id,
         })
-        .select("id,name,starts_on,ends_on,created_by")
+        .select(CHALLENGE_COLS)
         .single();
       if (error) return error.message;
       // adiciona direto; o realtime cuida dos desafios criados pelos outros
@@ -711,6 +783,138 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         const c = rowToChallenge(data);
         return prev?.some((x) => x.id === c.id) ? prev : [c, ...(prev ?? [])];
       });
+      // quem cria já entra — senão criaria um desafio do qual não participa
+      const uid = session.user.id;
+      await supabase
+        .from("challenge_participants")
+        .insert({ challenge_id: data.id, user_id: uid });
+      setParticipants((prev) => ({ ...(prev ?? {}), [data.id]: [uid] }));
+      return null;
+    },
+    [session, group]
+  );
+
+  /* participar é opt-in: quem não entrou não conta no ranking do desafio */
+
+  const joinChallenge = useCallback(
+    async (challengeId: string) => {
+      if (!session) return "entre primeiro";
+      const uid = session.user.id;
+      const { error } = await supabase
+        .from("challenge_participants")
+        .insert({ challenge_id: challengeId, user_id: uid });
+      // 23505 = já participava; pra quem clicou é sucesso, não erro
+      if (error && error.code !== "23505") return error.message;
+      setParticipants((prev) => {
+        const cur = prev?.[challengeId] ?? [];
+        if (cur.includes(uid)) return prev;
+        return { ...(prev ?? {}), [challengeId]: [...cur, uid] };
+      });
+      return null;
+    },
+    [session]
+  );
+
+  const leaveChallenge = useCallback(
+    async (challengeId: string) => {
+      if (!session) return "entre primeiro";
+      const uid = session.user.id;
+      const { error } = await supabase
+        .from("challenge_participants")
+        .delete()
+        .eq("challenge_id", challengeId)
+        .eq("user_id", uid);
+      if (error) return error.message;
+      setParticipants((prev) =>
+        prev
+          ? { ...prev, [challengeId]: (prev[challengeId] ?? []).filter((u) => u !== uid) }
+          : prev
+      );
+      return null;
+    },
+    [session]
+  );
+
+  /* trazer alguém pro desafio (a RLS exige turma em comum ou amizade) */
+  const addParticipant = useCallback(
+    async (challengeId: string, userId: string) => {
+      if (!session) return "entre primeiro";
+      const { error } = await supabase
+        .from("challenge_participants")
+        .insert({ challenge_id: challengeId, user_id: userId });
+      if (error && error.code !== "23505") return error.message;
+      setParticipants((prev) => {
+        const cur = prev?.[challengeId] ?? [];
+        if (cur.includes(userId)) return prev;
+        return { ...(prev ?? {}), [challengeId]: [...cur, userId] };
+      });
+      return null;
+    },
+    [session]
+  );
+
+  /* entrar por código: serve pra desafio de turma que não é a minha */
+  const joinChallengeByCode = useCallback(
+    async (code: string) => {
+      if (!session) return "entre primeiro";
+      const { error } = await supabase.rpc("join_challenge", { code: code.trim() });
+      if (error) return error.message;
+      await Promise.all([loadChallenges(), loadParticipants()]);
+      return null;
+    },
+    [session, loadChallenges, loadParticipants]
+  );
+
+  /* editar o desafio — a RLS só deixa quem criou */
+  const updateChallenge = useCallback(
+    async (id: string, patch: { name?: string; endsOn?: string }) => {
+      if (!session) return "entre primeiro";
+      const row: Record<string, string> = {};
+      if (patch.name !== undefined) row.name = patch.name.trim();
+      if (patch.endsOn !== undefined) row.ends_on = patch.endsOn;
+      if (!Object.keys(row).length) return null;
+      const { error } = await supabase.from("challenges").update(row).eq("id", id);
+      if (error) return error.message;
+      setChallenges((prev) =>
+        prev?.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+                ...(patch.endsOn !== undefined ? { endsOn: patch.endsOn } : {}),
+              }
+            : c
+        ) ?? prev
+      );
+      return null;
+    },
+    [session]
+  );
+
+  /* ————— turmas: trocar a ativa e renomear ————— */
+
+  const setActiveGroup = useCallback(
+    async (groupId: string) => {
+      if (!session) return "entre primeiro";
+      const { error } = await supabase.rpc("set_active_group", { g: groupId });
+      if (error) return error.message;
+      const g = (myGroups ?? []).find((x) => x.id === groupId);
+      // trocar o grupo ativo re-dispara os loaders (amigos/desafios/participantes)
+      if (g) setGroup(g);
+      return null;
+    },
+    [session, myGroups]
+  );
+
+  const renameGroup = useCallback(
+    async (name: string) => {
+      if (!session || !group) return "entre numa turma primeiro";
+      const clean = name.trim();
+      if (clean.length < 2) return "nome muito curto";
+      const { error } = await supabase.from("groups").update({ name: clean }).eq("id", group.id);
+      if (error) return error.message;
+      setGroup({ ...group, name: clean });
+      setMyGroups((prev) => prev?.map((g) => (g.id === group.id ? { ...g, name: clean } : g)) ?? prev);
       return null;
     },
     [session, group]
@@ -871,6 +1075,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setGroup(null);
     setFriends(null);
     setChallenges(null);
+    setParticipants(null);
+    setMyGroups(null);
     setNeedsOnboarding(false);
     setNeedsNewPassword(false);
     setMyAvatarUrl(null);
@@ -890,6 +1096,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         group,
         friends,
         challenges,
+        participants,
+        myGroups,
+        setActiveGroup,
+        renameGroup,
         needsOnboarding,
         needsNewPassword,
         onboard,
@@ -901,6 +1111,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         createGroup,
         joinGroup,
         createChallenge,
+        joinChallenge,
+        leaveChallenge,
+        updateChallenge,
+        joinChallengeByCode,
+        addParticipant,
         signOut,
         myAvatarUrl,
         myFriendCode,

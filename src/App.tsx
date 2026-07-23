@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Route, Routes } from "react-router-dom";
-import { DEMO_FLAG, useSync } from "./lib/sync";
+import { DEMO_FLAG, RETURNING_FLAG, useSync } from "./lib/sync";
 import { TabBar } from "./components/TabBar";
-import { NewPasswordSheet } from "./components/account";
+import { LoginScreen, NewPasswordSheet } from "./components/account";
 import { Landing } from "./screens/Landing";
 import { Onboarding } from "./screens/Onboarding";
 import { Hoje } from "./screens/Hoje";
@@ -37,18 +37,23 @@ export function App() {
   // porta de entrada: deslogado só entra no app após login (ou optando
   // explicitamente pela demonstração)
   if (!session && !inDemo) {
-    return (
-      <Landing
-        onDemo={() => {
-          try {
-            localStorage.setItem(DEMO_FLAG, "1");
-          } catch {
-            /* sem localStorage a demo não persiste, mas entra mesmo assim */
-          }
-          bump((n) => n + 1);
-        }}
-      />
-    );
+    const goDemo = () => {
+      try {
+        localStorage.setItem(DEMO_FLAG, "1");
+      } catch {
+        /* sem localStorage a demo não persiste, mas entra mesmo assim */
+      }
+      bump((n) => n + 1);
+    };
+    // quem já entrou com conta neste aparelho vai direto pro login (ex.: fechou
+    // e reabriu o app); a landing de boas-vindas fica só pra quem nunca entrou
+    let returning = false;
+    try {
+      returning = localStorage.getItem(RETURNING_FLAG) === "1";
+    } catch {
+      /* sem localStorage: trata como visitante novo → landing */
+    }
+    return returning ? <LoginScreen onExplore={goDemo} /> : <Landing onDemo={goDemo} />;
   }
 
   // chegou pelo link de "esqueci a senha": define a nova antes de tudo

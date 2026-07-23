@@ -110,6 +110,11 @@ const SyncCtx = createContext<SyncValue | null>(null);
 /** localStorage: o visitante escolheu explorar sem conta (some no logout) */
 export const DEMO_FLAG = "pulse-demo-optin";
 
+/** localStorage: esta pessoa já entrou com conta neste aparelho alguma vez.
+    Persiste de propósito (não some no logout) — é o que faz o deslogado dela
+    cair na tela de login direta em vez da landing de boas-vindas. */
+export const RETURNING_FLAG = "pulse-returning";
+
 /** URL pública de um objeto num bucket público (caminho é imprevisível). */
 export function publicPhotoUrl(bucket: "avatars" | "checkins", path: string | null): string | null {
   if (!path) return null;
@@ -209,6 +214,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  /* entrou com conta neste aparelho → marca pra sempre: o deslogado dela vira
+     tela de login direta, não a landing (que fica só pra quem nunca entrou) */
+  useEffect(() => {
+    if (!session) return;
+    try {
+      localStorage.setItem(RETURNING_FLAG, "1");
+    } catch {
+      /* sem localStorage: cai na landing, sem drama */
+    }
+  }, [session]);
 
   /* rede voltou: re-roda o bootstrap (reativa sync/grupo se abriu offline) */
   useEffect(() => {
@@ -844,7 +860,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     hydratedUidRef.current = null;
     pushedPresenceRef.current = new Set();
     window.clearTimeout(pushTimerRef.current);
-    // saiu da conta → volta pra landing (o modo demo é uma escolha explícita)
+    // saiu da conta → cai na tela de login (RETURNING_FLAG persiste; a landing
+    // é só pra quem nunca entrou). O modo demo continua uma escolha explícita.
     try {
       localStorage.removeItem(DEMO_FLAG);
     } catch {

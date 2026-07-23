@@ -4,6 +4,7 @@ import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
 import { isPasswordPwned } from "../lib/pwned";
 import { Avatar, BigButton, Sheet } from "./ui";
+import { IconPulse } from "./icons";
 import "./account.css";
 
 const PWNED_MSG = "Essa senha apareceu em vazamentos de dados públicos. Escolha outra.";
@@ -14,7 +15,7 @@ const PWNED_MSG = "Essa senha apareceu em vazamentos de dados públicos. Escolha
 
 type LoginMode = "entrar" | "criar" | "esqueci" | "esqueci-ok";
 
-export function LoginSheet({ onClose }: { onClose: () => void }) {
+function LoginForm({ variant, onClose }: { variant: "sheet" | "screen"; onClose: () => void }) {
   const sync = useSync();
   const [mode, setMode] = useState<LoginMode>("entrar");
   const [email, setEmail] = useState("");
@@ -51,8 +52,8 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
     : mode === "esqueci" || mode === "esqueci-ok" ? "Recuperar senha"
     : "Entrar";
 
-  return (
-    <Sheet title={title} onClose={onClose}>
+  const body = (
+    <>
       {mode === "entrar" && (
         <>
           <input
@@ -157,12 +158,51 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
             Enviado pra <b>{email}</b>. Abre o link neste navegador e o app pede a
             senha nova.
           </p>
-          <BigButton onClick={onClose} tone="ink">
-            Fechar
+          <BigButton onClick={variant === "screen" ? () => setMode("entrar") : onClose} tone="ink">
+            {variant === "screen" ? "Voltar pro login" : "Fechar"}
           </BigButton>
         </>
       )}
+    </>
+  );
+
+  if (variant === "screen") {
+    return (
+      <>
+        <h1 className="login-screen-title">{title}</h1>
+        {body}
+      </>
+    );
+  }
+  return (
+    <Sheet title={title} onClose={onClose}>
+      {body}
     </Sheet>
+  );
+}
+
+export function LoginSheet({ onClose }: { onClose: () => void }) {
+  return <LoginForm variant="sheet" onClose={onClose} />;
+}
+
+/** Tela cheia de login: quem já entrou neste aparelho vê isto ao ser deslogado
+    (ex.: reabriu o app depois de fechar), em vez da landing de boas-vindas. O
+    atalho de demo evita prender quem quer só espiar sem a conta. */
+export function LoginScreen({ onExplore }: { onExplore: () => void }) {
+  return (
+    <main className="login-screen">
+      <div className="aurora" aria-hidden />
+      <div className="login-screen-inner rise">
+        <span className="ld-brand">
+          <IconPulse size={22} stroke={2.4} />
+          Pulse
+        </span>
+        <LoginForm variant="screen" onClose={() => {}} />
+        <button className="login-explore" onClick={onExplore}>
+          Explorar sem conta — dados de exemplo
+        </button>
+      </div>
+    </main>
   );
 }
 

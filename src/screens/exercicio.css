@@ -1,0 +1,227 @@
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 28px;
+}
+
+.ficha-name {
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.ficha-map {
+  padding: 16px 14px 18px;
+  text-align: center;
+}
+
+.ficha-chips {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.ficha-summary {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin-top: 12px;
+}
+
+.ficha-block,
+.ficha-tip {
+  padding: 16px;
+}
+
+.ficha-text {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-top: 6px;
+}
+
+.ficha-tip {
+  background: var(--ambar-soft);
+}
+
+.ficha-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  counter-reset: step;
+}
+
+.ficha-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ficha-steps span {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.ficha-steps p {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.ficha-mistakes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ficha-mistakes li {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  padding-left: 16px;
+  position: relative;
+}
+
+.ficha-mistakes li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.ficha-hist {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ficha-hist > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  text-align: center;
+}
+
+.ficha-hist small {
+  font-size: 11px;
+  color: var(--ink-cap);
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ficha-hist-num {
+  font-size: 24px;
+  color: var(--ink);
+}
+
+.ficha-hist-num small {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-left: 1px;
+}
+
+.ficha-swaps {
+  list-style: none;
+  margin-top: 6px;
+}
+
+.ficha-swaps button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 2px;
+  border-bottom: 1px dashed var(--line-soft);
+  font-size: 14.5px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.ficha-swaps li:last-child button {
+  border-bottom: none;
+}
+
+.ficha-foot {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-cap);
+  text-align: center;
+  padding: 4px 10px;
+}
+
+.ficha-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.ficha-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  text-align: left;
+}
+
+.ficha-pick:disabled {
+  opacity: 0.5;
+}
+
+.ficha-pick-letter {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.ficha-pick-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ficha-pick-info b {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.ficha-pick-info small {
+  font-size: 12px;
+  color: var(--ink-cap);
+}

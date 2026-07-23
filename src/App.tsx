@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { DEMO_FLAG, RETURNING_FLAG, useSync } from "./lib/sync";
 import { TabBar } from "./components/TabBar";
@@ -17,6 +17,12 @@ import { PratoEditor } from "./screens/PratoEditor";
 import { Corpo } from "./screens/Corpo";
 import { Grupo } from "./screens/Grupo";
 import { Ajustes } from "./screens/Ajustes";
+
+/* mesma razão da aba Exercícios: a ficha carrega o texto de todos os
+   exercícios, e isso não pode entrar no bundle da tela inicial */
+const Exercicio = lazy(() =>
+  import("./screens/Exercicio").then((m) => ({ default: m.Exercicio }))
+);
 
 export function App() {
   const { needsOnboarding, needsNewPassword, session, ready } = useSync();
@@ -82,6 +88,14 @@ export function App() {
         <Route path="/treino/:sessionId" element={<Sessao />} />
         <Route path="/resumo/:sessionId" element={<Resumo />} />
         <Route path="/plano/:workoutId" element={<PlanoEditor />} />
+        <Route
+          path="/exercicio/:exerciseId"
+          element={
+            <Suspense fallback={null}>
+              <Exercicio />
+            </Suspense>
+          }
+        />
         <Route path="/dieta" element={<Dieta />} />
         <Route path="/dieta/metas" element={<DietaMetas />} />
         <Route path="/dieta/pratos" element={<Pratos />} />

@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../lib/store";
 import { latestWeight, readLoop, sortedWeights } from "../lib/nutrition";
-import { todayISO } from "../lib/dates";
+import { formatShort, todayISO } from "../lib/dates";
 import { fmtDec1 as fmtKg } from "../lib/format";
+import type { WeightEntry } from "../lib/types";
 import { LineChart } from "../components/charts";
-import { Chip } from "../components/ui";
-import { IconCheck, IconMinus, IconPlus, IconUp } from "../components/icons";
+import { BigButton, Chip, ConfirmSheet, Sheet } from "../components/ui";
+import {
+  IconCheck,
+  IconChevronRight,
+  IconMinus,
+  IconPlus,
+  IconUp,
+} from "../components/icons";
 import "./corpo.css";
 
 export function Corpo() {
@@ -13,6 +20,7 @@ export function Corpo() {
   const weights = useMemo(() => sortedWeights(state), [state]);
   const current = latestWeight(state) ?? 75;
   const loggedToday = weights.some((w) => w.date === todayISO());
+  const [editing, setEditing] = useState<WeightEntry | null>(null);
 
   const [kg, setKg] = useState(current);
   const [touched, setTouched] = useState(false);
@@ -117,9 +125,105 @@ export function Corpo() {
         />
       </section>
 
+      {weights.length > 0 && (
+        <section className="card peso-hist rise">
+          <header className="prog-chart-head">
+            <div>
+              <h2>Registros</h2>
+              <p>toque pra corrigir ou apagar</p>
+            </div>
+          </header>
+          <ul>
+            {[...weights]
+              .reverse()
+              .slice(0, 10)
+              .map((w) => (
+                <li key={w.date}>
+                  <button onClick={() => setEditing(w)}>
+                    <span>{w.date === todayISO() ? "hoje" : formatShort(w.date)}</span>
+                    <b className="serif-num">
+                      {fmtKg(w.kg)}
+                      <small>kg</small>
+                    </b>
+                    <IconChevronRight />
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
       <p className="corpo-privacy rise">
         Seu peso é privado por padrão — o grupo vê presença e carga, nunca isto aqui.
       </p>
+
+      {editing && (
+        <WeightEditSheet
+          entry={editing}
+          onClose={() => setEditing(null)}
+          onSave={(date, value) => {
+            dispatch({ type: "LOG_WEIGHT", date, kg: value });
+            setEditing(null);
+          }}
+          onDelete={(date) => {
+            dispatch({ type: "REMOVE_WEIGHT", date });
+            setEditing(null);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+/* ————— corrigir um peso registrado ————— */
+
+function WeightEditSheet({
+  entry,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  entry: WeightEntry;
+  onClose: () => void;
+  onSave: (date: string, kg: number) => void;
+  onDelete: (date: string) => void;
+}) {
+  const [kg, setKg] = useState(entry.kg);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const bump = (delta: number) => setKg((k) => Math.min(300, Math.max(30, +(k + delta).toFixed(1))));
+
+  if (confirmDelete) {
+    return (
+      <ConfirmSheet
+        title={`Apagar o peso de ${formatShort(entry.date)}?`}
+        text="Some da linha do tempo e da leitura do loop. Sem drama: dá pra registrar de novo."
+        confirmLabel="Apagar registro"
+        onConfirm={() => onDelete(entry.date)}
+        onClose={() => setConfirmDelete(false)}
+      />
+    );
+  }
+
+  return (
+    <Sheet title={formatShort(entry.date)} onClose={onClose}>
+      <div className="peso-ctrl">
+        <button onClick={() => bump(-0.1)} aria-label="Menos 100g">
+          <IconMinus size={19} />
+        </button>
+        <span className="peso-num serif-num">
+          {fmtKg(kg)}
+          <small>kg</small>
+        </span>
+        <button onClick={() => bump(0.1)} aria-label="Mais 100g">
+          <IconPlus size={19} stroke={2} />
+        </button>
+      </div>
+      <BigButton onClick={() => onSave(entry.date, kg)} tone="pulse">
+        Salvar correção
+      </BigButton>
+      <button className="editor-delete" onClick={() => setConfirmDelete(true)}>
+        Apagar registro
+      </button>
+    </Sheet>
   );
 }

@@ -34,3 +34,10 @@
 }
 
 /* .th-seg (segmented) foi consolidado em global.css */
+
+.th-loading {
+  padding: 28px 6px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-cap);
+}

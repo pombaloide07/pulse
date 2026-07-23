@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { WEEKDAY_SHORT, addDays, fromISO, toISO, todayISO } from "../lib/dates";
 import { nextWorkout } from "../lib/logic";
@@ -13,6 +14,7 @@ import "./quicklog.css";
  */
 export function QuickLogSheet({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
+  const navigate = useNavigate();
   const me = state.members.find((m) => m.isMe);
   const [date, setDate] = useState(todayISO());
   const [workoutId, setWorkoutId] = useState(nextWorkout(state).id);
@@ -28,8 +30,11 @@ export function QuickLogSheet({ onClose }: { onClose: () => void }) {
   };
 
   const save = () => {
-    dispatch({ type: "QUICK_LOG", workoutId, sessionId: `q-${Date.now()}`, date });
+    const id = `q-${Date.now()}`;
+    dispatch({ type: "QUICK_LOG", workoutId, sessionId: id, date });
     onClose();
+    // cai no resumo: se lançou errado, corrigir e apagar estão logo ali
+    navigate(`/resumo/${id}`);
   };
 
   return (

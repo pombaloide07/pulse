@@ -3,6 +3,8 @@ import { WEEKDAY_LETTERS, currentWeekISO, todayISO } from "../lib/dates";
 import { Portal } from "./Portal";
 import { IconX } from "./icons";
 import "./ui.css";
+// o padrão de picker/chips é usado por várias telas — carrega junto do resto da UI
+import "./picker.css";
 
 /* ————— Sheet modal (padrão único de todos os sheets do app) ————— */
 
@@ -39,6 +41,37 @@ export function Sheet({
         </div>
       </div>
     </Portal>
+  );
+}
+
+/* ————— Confirmação destrutiva (padrão único: apagar sempre pergunta) ————— */
+
+export function ConfirmSheet({
+  title,
+  text,
+  confirmLabel,
+  cancelLabel = "Cancelar",
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  text: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet onClose={onClose}>
+      <h2>{title}</h2>
+      <p>{text}</p>
+      <BigButton onClick={onConfirm} tone="pulse">
+        {confirmLabel}
+      </BigButton>
+      <BigButton onClick={onClose} tone="ghost">
+        {cancelLabel}
+      </BigButton>
+    </Sheet>
   );
 }
 

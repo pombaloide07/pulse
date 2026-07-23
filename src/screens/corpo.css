@@ -140,3 +140,45 @@
   font-style: italic;
   font-family: var(--serif);
 }
+
+/* registros de peso — a porta pra corrigir e apagar */
+.peso-hist ul {
+  list-style: none;
+  margin-top: 6px;
+}
+
+.peso-hist li button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px dashed var(--line-soft);
+  text-align: left;
+  color: var(--ink-3);
+}
+
+.peso-hist li:last-child button {
+  border-bottom: none;
+}
+
+.peso-hist li button:active {
+  background: var(--card-warm);
+}
+
+.peso-hist li button > span {
+  flex: 1;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.peso-hist li button b {
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.peso-hist li button b small {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-left: 1px;
+}

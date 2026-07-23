@@ -5,8 +5,8 @@ import type { Challenge, Member } from "../lib/types";
 import { currentChallenge, readChallenge } from "../lib/logic";
 import { WEEKDAY_SHORT, addDays, diffDays, formatShort, fromISO, toISO, todayISO } from "../lib/dates";
 import { ConnectionCard } from "./account";
-import { Avatar, BigButton, Chip, Sheet } from "./ui";
-import { IconCheck, IconMedal, IconPlus } from "./icons";
+import { Avatar, BigButton, Chip, ConfirmSheet, Sheet } from "./ui";
+import { IconChat, IconCheck, IconMedal, IconPlus, IconX } from "./icons";
 import "./challenges.css";
 
 /* ————————————————————————————————————————————————
@@ -258,6 +258,8 @@ function SelectedChallenge({
   }, [cursor, challenge.startsOn]);
   const [selDay, setSelDay] = useState(cursor);
   useEffect(() => setSelDay(cursor), [challenge.id, cursor]);
+  // foto aberta em tela cheia, com a conversa embaixo
+  const [openCheckin, setOpenCheckin] = useState<string | null>(null);
 
   const dayCheckins = useMemo(
     () =>
@@ -394,20 +396,36 @@ function SelectedChallenge({
         </p>
       ) : (
         <div className="ch-feed">
-          {dayCheckins.map((c) => (
-            <figure key={c.id} className="ch-photo">
-              <img src={c.photoUrl} alt={`Check-in de ${c.member?.name ?? "alguém"}`} loading="lazy" />
-              <figcaption>
-                <Avatar
-                  initials={c.member?.initials ?? "?"}
-                  color={c.member?.color ?? "#8a7d69"}
-                  photoUrl={c.member?.avatarUrl}
-                  size={22}
+          {dayCheckins.map((c) => {
+            const nComments = sync.comments?.[c.id]?.length ?? 0;
+            return (
+              <button
+                key={c.id}
+                className="ch-photo"
+                onClick={() => setOpenCheckin(c.id)}
+                aria-label={`Check-in de ${c.member?.name ?? "alguém"}, ${nComments} comentários`}
+              >
+                <img
+                  src={c.photoUrl}
+                  alt={`Check-in de ${c.member?.name ?? "alguém"}`}
+                  loading="lazy"
                 />
-                <span>{c.member?.isMe ? "você" : (c.member?.name ?? "alguém")}</span>
-              </figcaption>
-            </figure>
-          ))}
+                <span className="ch-photo-cap">
+                  <Avatar
+                    initials={c.member?.initials ?? "?"}
+                    color={c.member?.color ?? "#8a7d69"}
+                    photoUrl={c.member?.avatarUrl}
+                    size={22}
+                  />
+                  <span>{c.member?.isMe ? "você" : (c.member?.name ?? "alguém")}</span>
+                  <span className={`ch-photo-talk ${nComments ? "ch-photo-talk-on" : ""}`}>
+                    <IconChat size={13} />
+                    {nComments > 0 && nComments}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -417,6 +435,13 @@ function SelectedChallenge({
           : "1 check-in por dia, com foto. A mesma foto pode valer pra mais de um desafio — você escolhe."}
       </p>
 
+      {openCheckin && dayCheckins.some((c) => c.id === openCheckin) && (
+        <CheckinTalkSheet
+          checkin={dayCheckins.find((c) => c.id === openCheckin)!}
+          members={members}
+          onClose={() => setOpenCheckin(null)}
+        />
+      )}
       {editing && (
         <EditChallengeSheet challenge={challenge} onClose={() => setEditing(false)} />
       )}
@@ -626,6 +651,135 @@ function JoinByCodeSheet({ onClose }: { onClose: () => void }) {
       <BigButton onClick={go} tone="pulse" disabled={busy || code.trim().length < 4}>
         {busy ? "Entrando…" : "Entrar no desafio"}
       </BigButton>
+    </Sheet>
+  );
+}
+
+/* ————— a foto aberta, com a conversa embaixo ————— */
+
+function CheckinTalkSheet({
+  checkin,
+  members,
+  onClose,
+}: {
+  checkin: CheckinInfo & { member?: Member };
+  members: Member[];
+  onClose: () => void;
+}) {
+  const sync = useSync();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const uid = sync.session?.user.id;
+  const thread = sync.comments?.[checkin.id] ?? [];
+  const isMine = checkin.userId === uid;
+
+  // conversa nova chega por baixo: rola pro fim quando o tamanho muda
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [thread.length]);
+
+  const nameOf = (userId: string) => {
+    if (userId === uid) return "você";
+    return members.find((m) => m.id === userId)?.name ?? "alguém";
+  };
+  const memberOf = (userId: string) => members.find((m) => m.id === userId);
+
+  const send = async () => {
+    const clean = text.trim();
+    if (!clean || busy) return;
+    setBusy(true);
+    setErro(null);
+    const err = await sync.addComment(checkin.id, clean);
+    setBusy(false);
+    if (err) setErro(err);
+    else setText("");
+  };
+
+  return (
+    <Sheet onClose={onClose} className="talk">
+      <header className="picker-head">
+        <h2>
+          {checkin.member?.isMe ? "Seu check-in" : `Check-in de ${checkin.member?.name ?? "alguém"}`}
+        </h2>
+        <button onClick={onClose} aria-label="Fechar">
+          <IconX />
+        </button>
+      </header>
+
+      <img className="talk-photo" src={checkin.photoUrl} alt="" />
+
+      <div className="talk-list" ref={listRef}>
+        {thread.length === 0 ? (
+          <p className="talk-empty">
+            {isMine
+              ? "Ninguém comentou ainda na sua foto."
+              : "Sem comentários. Uma palavra aqui vale mais que um like."}
+          </p>
+        ) : (
+          thread.map((c) => {
+            const mine = c.userId === uid;
+            const m = memberOf(c.userId);
+            return (
+              <div key={c.id} className={`talk-msg ${mine ? "talk-mine" : ""}`}>
+                <Avatar
+                  initials={m?.initials ?? "?"}
+                  color={m?.color ?? "#8a7d69"}
+                  photoUrl={m?.avatarUrl}
+                  size={26}
+                />
+                <div className="talk-bubble">
+                  <b>{nameOf(c.userId)}</b>
+                  <p>{c.body}</p>
+                </div>
+                {/* apaga o próprio comentário; dono da foto modera a própria foto */}
+                {(mine || isMine) && (
+                  <button
+                    className="talk-del"
+                    aria-label="Apagar comentário"
+                    onClick={() => setConfirmDelete(c.id)}
+                  >
+                    <IconX size={13} />
+                  </button>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="talk-compose">
+        <input
+          value={text}
+          maxLength={500}
+          placeholder="Manda um incentivo…"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") send();
+          }}
+          aria-label="Escrever comentário"
+        />
+        <button onClick={send} disabled={busy || !text.trim()}>
+          {busy ? "…" : "Enviar"}
+        </button>
+      </div>
+      {erro && <p className="talk-erro">{erro}</p>}
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title="Apagar comentário?"
+          text="Some pra todo mundo do desafio."
+          confirmLabel="Apagar"
+          onConfirm={async () => {
+            await sync.removeComment(confirmDelete);
+            setConfirmDelete(null);
+          }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </Sheet>
   );
 }

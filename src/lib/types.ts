@@ -8,11 +8,57 @@ export type MuscleGroup =
   | "Glúteos"
   | "Abdômen";
 
+export type Equipment = "Barra" | "Halteres" | "Máquina" | "Polia" | "Peso do corpo";
+
+/**
+ * Regiões do mapa anatômico da biblioteca (src/components/anatomy.tsx).
+ * São mais finas que MuscleGroup de propósito: o grupo serve pra filtrar a
+ * lista, a região serve pra pintar o corpo.
+ */
+export type MuscleRegion =
+  | "peitoral"
+  | "deltoide-anterior"
+  | "deltoide-lateral"
+  | "deltoide-posterior"
+  | "trapezio"
+  | "dorsal"
+  | "lombar"
+  | "biceps"
+  | "triceps"
+  | "antebraco"
+  | "abdomen"
+  | "obliquo"
+  | "gluteo"
+  | "quadriceps"
+  | "isquiotibiais"
+  | "adutores"
+  | "panturrilha";
+
+/** A ficha do exercício na biblioteca — texto nosso, em português. */
+export interface ExerciseGuide {
+  /** o que o exercício treina de verdade (vermelho forte no mapa) */
+  primary: MuscleRegion[];
+  /** o que ajuda de forma relevante (vermelho fraco) */
+  secondary: MuscleRegion[];
+  /** uma frase: que movimento é esse */
+  summary: string;
+  /** execução, passo a passo */
+  steps: string[];
+  /** o que costuma sair errado */
+  mistakes: string[];
+  /** onde fazer na academia, e o que serve quando não tem o aparelho */
+  where: string;
+  /** ids de exercícios que substituem esse */
+  swaps: string[];
+  /** a dica que muda o exercício */
+  tip: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
   muscle: MuscleGroup;
-  equipment: "Barra" | "Halteres" | "Máquina" | "Polia" | "Peso do corpo";
+  equipment: Equipment;
 }
 
 /** Um exercício dentro de um treino do plano. */
@@ -45,6 +91,13 @@ export interface SetLog {
 export interface ExerciseLog {
   exerciseId: string;
   sets: SetLog[];
+  /** entrou durante o treino, fora do que o plano mandava */
+  extra?: boolean;
+  /**
+   * Exercício do plano que este substituiu (a máquina estava ocupada). O log
+   * continua ocupando a vaga do plano — não é "extra" nem "pulado".
+   */
+  replacedId?: string;
 }
 
 export interface Session {

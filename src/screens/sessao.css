@@ -282,3 +282,107 @@
   font-size: 14.5px;
   margin-bottom: 8px;
 }
+
+/* ————— correção de treino já registrado ————— */
+.sessao-editing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--paper-deep);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+.sessao-editing button {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--pulse-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ————— exercício fora do plano ————— */
+.sessao-extras-chip {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 -4px;
+}
+
+.ex-extra {
+  border: 1px dashed var(--ambar);
+  background: linear-gradient(var(--card), var(--card)) padding-box;
+}
+
+.ex-extra .ex-head p {
+  color: var(--ambar);
+  font-weight: 600;
+}
+
+.ex-remove {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.ex-remove:active {
+  background: var(--pulse-soft);
+  color: var(--pulse-deep);
+}
+
+/* rodapé do card: mexer no número de séries e trocar o exercício */
+.ex-foot {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 2px;
+  border-top: 1px dashed var(--line-soft);
+}
+
+.ex-foot button {
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.ex-foot button:disabled {
+  opacity: 0.35;
+}
+
+.ex-foot .ex-swap {
+  margin-left: auto;
+  color: var(--pulse-deep);
+  border-color: var(--pulse-soft);
+  background: var(--pulse-soft);
+}
+
+/* fica fora do rodapé fixo: o polegar não disputa com "Concluir treino" */
+.sessao-add {
+  padding: 14px 0 4px;
+}
+
+.sessao-add .sessao-hint {
+  padding-top: 8px;
+}
+
+.ex-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}

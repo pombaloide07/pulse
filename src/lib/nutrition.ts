@@ -72,6 +72,17 @@ export function kcalFloor(profile: Profile, weightKg: number): number {
 
 /* ————— registro & acompanhamento ————— */
 
+/**
+ * Macros de um lançamento em outra quantidade, reescalando o próprio snapshot
+ * dele. Proporcional de propósito: funciona pra prato que já foi editado ou
+ * excluído, pra produto embalado (que nunca entra na base local) e pra
+ * lançamento sem origem nenhuma.
+ */
+export function rescaleMeal(entry: MealEntry, grams: number): FoodMacros {
+  if (!entry.grams || grams <= 0) return entry.macros;
+  return scaleMacros(entry.macros, (grams / entry.grams) * 100);
+}
+
 export function dayEntries(state: AppState, iso: string): MealEntry[] {
   return state.meals.filter((m) => m.date === iso).sort((a, b) => a.minutes - b.minutes);
 }

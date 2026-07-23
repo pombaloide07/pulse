@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import {
   personalRecords,
@@ -7,16 +8,17 @@ import {
   trackedExercises,
   weeklyVolume,
 } from "../lib/logic";
-import { EXERCISE_BY_ID } from "../lib/exercises";
+import { exerciseName } from "../lib/exercises";
 import { LineChart, VolumeBars } from "../components/charts";
 import { Chip } from "../components/ui";
-import { IconMedal, IconUp } from "../components/icons";
+import { IconChevronRight, IconMedal, IconUp } from "../components/icons";
 import { formatShort } from "../lib/dates";
 import "./progresso.css";
 
 /** Seção "Progressão" do hub Treino. */
 export function ProgressoSection() {
   const { state } = useStore();
+  const navigate = useNavigate();
   const tracked = useMemo(() => trackedExercises(state), [state]);
   const [selected, setSelected] = useState<string | null>(null);
   const exerciseId = selected ?? tracked[0];
@@ -28,6 +30,17 @@ export function ProgressoSection() {
   const plateauInfo = useMemo(() => plateau(points), [points]);
   const volume = useMemo(() => weeklyVolume(state, 8), [state]);
   const prs = useMemo(() => personalRecords(state).slice(0, 5), [state]);
+  // o histórico que o app nunca teve: é por aqui que se corrige ou apaga.
+  // Ordena pelo dia (que é o que a linha mostra); startedAt só desempata dois
+  // treinos do mesmo dia.
+  const recent = useMemo(
+    () =>
+      [...state.sessions]
+        .filter((s) => s.finishedAt)
+        .sort((a, b) => (a.date === b.date ? b.startedAt - a.startedAt : a.date < b.date ? 1 : -1))
+        .slice(0, 12),
+    [state.sessions]
+  );
 
   const first = points[0]?.topLoad ?? 0;
   const last = points[points.length - 1]?.topLoad ?? 0;
@@ -42,7 +55,7 @@ export function ProgressoSection() {
             className={`pf ${id === exerciseId ? "pf-on" : ""}`}
             onClick={() => setSelected(id)}
           >
-            {EXERCISE_BY_ID[id]?.name ?? id}
+            {exerciseName(id)}
           </button>
         ))}
       </div>
@@ -50,7 +63,7 @@ export function ProgressoSection() {
       <section className="card prog-chart rise">
         <header className="prog-chart-head">
           <div>
-            <h2>{EXERCISE_BY_ID[exerciseId ?? ""]?.name}</h2>
+            <h2>{exerciseId ? exerciseName(exerciseId) : "Progressão"}</h2>
             <p>carga máxima por treino</p>
           </div>
           {gain > 0 && (
@@ -108,6 +121,40 @@ export function ProgressoSection() {
           ))}
         </ul>
       </section>
+
+      {recent.length > 0 && (
+        <section className="card prog-hist rise">
+          <header className="prog-chart-head">
+            <div>
+              <h2>Últimos treinos</h2>
+              <p>toque pra ver, corrigir ou apagar</p>
+            </div>
+          </header>
+          <ul>
+            {recent.map((s) => {
+              const w = state.workouts.find((x) => x.id === s.workoutId);
+              const sets = s.logs.reduce(
+                (acc, l) => acc + l.sets.filter((x) => x.done).length,
+                0
+              );
+              return (
+                <li key={s.id}>
+                  <button onClick={() => navigate(`/resumo/${s.id}`)}>
+                    <span className="ph-letter serif-num">{w?.letter ?? "?"}</span>
+                    <span className="ph-info">
+                      <b>{w?.name ?? "Treino"}</b>
+                      <small>
+                        {formatShort(s.date)} · {sets} {sets === 1 ? "série" : "séries"}
+                      </small>
+                    </span>
+                    <IconChevronRight />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

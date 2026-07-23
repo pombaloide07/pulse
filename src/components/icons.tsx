@@ -150,3 +150,11 @@ export function IconMedal({ size = 20, stroke = 1.9 }: IconProps) {
     </svg>
   );
 }
+
+export function IconChat({ size = 20, stroke = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={stroke}>
+      <path d="M20.5 11.4c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4 20l1.4-3.5C4.2 15.2 3.5 13.4 3.5 11.4c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2Z" />
+    </svg>
+  );
+}

@@ -335,21 +335,6 @@
 }
 
 /* busca */
-.food-search {
-  width: 100%;
-  padding: 13px 16px;
-  border-radius: var(--r-pill);
-  border: 1.5px solid var(--line);
-  background: var(--paper);
-  font-size: 15px;
-  margin: 6px 0 4px;
-}
-
-.food-search:focus {
-  outline: none;
-  border-color: var(--pulse);
-}
-
 .food-qty {
   display: flex;
   align-items: center;
@@ -445,4 +430,38 @@
     transform: translate(-50%, 14px);
     opacity: 0;
   }
+}
+
+/* .de-info virou botão: toque abre a correção do lançamento */
+button.de-info {
+  align-items: flex-start;
+  text-align: left;
+  padding: 2px 0;
+  color: var(--ink);
+}
+
+button.de-info:active {
+  opacity: 0.6;
+}
+
+/* trilha de dias da lista de refeições */
+.dieta-days {
+  padding: 8px 0 4px;
+}
+
+.dieta-edit-hint {
+  font-size: 11.5px;
+  color: var(--ink-cap);
+  padding-top: 10px;
+}
+
+/* hora do lançamento, no sheet de correção */
+.meal-time {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+
+.meal-time .field {
+  flex: 1;
 }

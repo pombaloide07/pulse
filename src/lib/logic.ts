@@ -1,6 +1,14 @@
-import type { AppState, ScheduleDay, Challenge, Member, Session, Workout } from "./types";
+import type {
+  AppState,
+  ScheduleDay,
+  Challenge,
+  ExerciseLog,
+  Member,
+  Session,
+  Workout,
+} from "./types";
 import { REST_DAY } from "./types";
-import { EXERCISE_BY_ID } from "./exercises";
+import { exerciseName } from "./exercises";
 import { currentWeekISO, diffDays, fromISO, mondayOf, toISO, todayISO } from "./dates";
 
 /* ————— rotação do plano ————— */
@@ -81,6 +89,30 @@ export interface CoherenceItem {
   loadDelta: number | null;
   skipped: boolean;
   isRecord: boolean;
+  /** nome do exercício do plano que este substituiu, quando houve troca */
+  replacedName?: string;
+}
+
+/**
+ * O log que corresponde a um exercício do plano — o dele mesmo, ou o do
+ * exercício que entrou no lugar dele (troca durante o treino).
+ */
+export function logForItem(session: Session, exerciseId: string): ExerciseLog | undefined {
+  return session.logs.find(
+    (l) => l.exerciseId === exerciseId || l.replacedId === exerciseId
+  );
+}
+
+/** Carga da última vez que você fez esse exercício (0 se nunca fez). */
+export function lastLoadOf(state: AppState, exerciseId: string): number {
+  const sorted = [...state.sessions]
+    .filter((s) => s.finishedAt)
+    .sort((a, b) => b.startedAt - a.startedAt);
+  for (const s of sorted) {
+    const done = s.logs.find((l) => l.exerciseId === exerciseId)?.sets.filter((x) => x.done);
+    if (done?.length) return Math.max(...done.map((x) => x.load));
+  }
+  return 0;
 }
 
 export interface CoherenceReading {
@@ -92,6 +124,8 @@ export interface CoherenceReading {
   loadUps: CoherenceItem[];
   records: CoherenceItem[];
   skips: CoherenceItem[];
+  /** o que você fez além do plano — não entra no ratio */
+  extras: CoherenceItem[];
 }
 
 export function readCoherence(state: AppState, session: Session): CoherenceReading {
@@ -101,25 +135,52 @@ export function readCoherence(state: AppState, session: Session): CoherenceReadi
   let doneSetsTotal = 0;
 
   for (const item of workout?.items ?? []) {
-    const log = session.logs.find((l) => l.exerciseId === item.exerciseId);
+    // pode ter entrado outro exercício no lugar deste durante o treino
+    const log = logForItem(session, item.exerciseId);
     const doneSets = log ? log.sets.filter((s) => s.done).length : 0;
     const topLoad = log ? Math.max(0, ...log.sets.filter((s) => s.done).map((s) => s.load)) : 0;
     const skipped = doneSets === 0;
+    const swapped = !!log?.replacedId;
     plannedSetsTotal += item.sets;
     doneSetsTotal += Math.min(doneSets, item.sets);
-    const prevBest = bestLoadBefore(state, item.exerciseId, session.id);
+    const doneId = log?.exerciseId ?? item.exerciseId;
+    const prevBest = bestLoadBefore(state, doneId, session.id);
     items.push({
-      exerciseId: item.exerciseId,
-      name: EXERCISE_BY_ID[item.exerciseId]?.name ?? item.exerciseId,
+      exerciseId: doneId,
+      name: exerciseName(doneId),
       plannedSets: item.sets,
       doneSets,
-      targetLoad: item.targetLoad,
+      // trocou de exercício: comparar com o alvo do outro não diz nada
+      targetLoad: swapped ? 0 : item.targetLoad,
       topLoad,
-      loadDelta: skipped ? null : topLoad - item.targetLoad,
+      loadDelta: skipped || swapped ? null : topLoad - item.targetLoad,
       skipped,
       isRecord: !skipped && topLoad > 0 && topLoad > prevBest,
+      replacedName: swapped ? exerciseName(item.exerciseId) : undefined,
     });
   }
+
+  // extras entram na leitura, mas nunca no ratio: adicionar exercício não pode
+  // fazer a barra do treino andar pra trás
+  const extras: CoherenceItem[] = session.logs
+    .filter((l) => l.extra)
+    .map((log) => {
+      const doneSets = log.sets.filter((s) => s.done).length;
+      const topLoad = Math.max(0, ...log.sets.filter((s) => s.done).map((s) => s.load));
+      const prevBest = bestLoadBefore(state, log.exerciseId, session.id);
+      return {
+        exerciseId: log.exerciseId,
+        name: exerciseName(log.exerciseId),
+        plannedSets: 0,
+        doneSets,
+        targetLoad: 0,
+        topLoad,
+        loadDelta: null,
+        skipped: doneSets === 0,
+        isRecord: doneSets > 0 && topLoad > 0 && topLoad > prevBest,
+      };
+    })
+    .filter((i) => !i.skipped);
 
   const doneExercises = items.filter((i) => !i.skipped).length;
   return {
@@ -128,8 +189,9 @@ export function readCoherence(state: AppState, session: Session): CoherenceReadi
     plannedExercises: items.length,
     ratio: plannedSetsTotal ? doneSetsTotal / plannedSetsTotal : 0,
     loadUps: items.filter((i) => (i.loadDelta ?? 0) > 0),
-    records: items.filter((i) => i.isRecord),
+    records: [...items, ...extras].filter((i) => i.isRecord),
     skips: items.filter((i) => i.skipped),
+    extras,
   };
 }
 
@@ -226,11 +288,7 @@ export function personalRecords(state: AppState): PR[] {
     }
   }
   return [...best.entries()]
-    .map(([exerciseId, v]) => ({
-      exerciseId,
-      name: EXERCISE_BY_ID[exerciseId]?.name ?? exerciseId,
-      ...v,
-    }))
+    .map(([exerciseId, v]) => ({ exerciseId, name: exerciseName(exerciseId), ...v }))
     .sort((a, b) => b.load - a.load);
 }
 

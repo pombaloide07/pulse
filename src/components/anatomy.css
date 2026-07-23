@@ -1,0 +1,103 @@
+.bodymap {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bm-fig {
+  margin: 0;
+  flex: 1;
+  max-width: 124px;
+  text-align: center;
+}
+
+.bm-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.bm-fig figcaption {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-cap);
+  margin-top: 2px;
+}
+
+/* corpo em repouso: o mesmo bege do papel, com contorno discreto */
+.bm-off {
+  fill: var(--paper-deep);
+  stroke: var(--line);
+  stroke-width: 0.7;
+}
+
+/* auxiliar: o coral bem diluído — participa, mas não é o alvo */
+.bm-secondary {
+  fill: var(--pulse-soft);
+  stroke: var(--pulse);
+  stroke-width: 0.7;
+  stroke-opacity: 0.45;
+}
+
+/* alvo do exercício */
+.bm-primary {
+  fill: var(--pulse);
+  stroke: var(--pulse-deep);
+  stroke-width: 0.7;
+}
+
+/* miniatura da lista: uma vista só, sem legenda. A altura é que manda —
+   a silhueta é alta e estreita, então largura fixa transbordaria a linha. */
+.bodymap-mini {
+  display: block;
+}
+
+.bodymap-mini .bm-fig {
+  max-width: none;
+}
+
+.bodymap-mini .bm-svg {
+  height: 56px;
+  width: auto;
+  margin: 0 auto;
+}
+
+/* no tamanho pequeno, contorno fino demais some */
+.bodymap-mini .bm-off,
+.bodymap-mini .bm-secondary,
+.bodymap-mini .bm-primary {
+  stroke-width: 1.2;
+}
+
+.bm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin-top: 10px;
+}
+
+.bm-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+.bm-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.bm-legend .bm-dot-primary {
+  background: var(--pulse);
+}
+
+.bm-legend .bm-dot-secondary {
+  background: var(--pulse-soft);
+  border: 1px solid rgba(228, 87, 61, 0.45);
+}

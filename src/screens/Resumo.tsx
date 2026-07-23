@@ -1,14 +1,19 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../lib/store";
+import { useSync } from "../lib/sync";
 import { readCoherence } from "../lib/logic";
-import { BigButton, Chip } from "../components/ui";
-import { IconCheck, IconMedal, IconUp } from "../components/icons";
+import { formatShort } from "../lib/dates";
+import { BigButton, Chip, ConfirmSheet } from "../components/ui";
+import { IconCheck, IconMedal, IconPlus, IconUp } from "../components/icons";
 import "./resumo.css";
 
 export function Resumo() {
   const { sessionId } = useParams();
   const { state } = useStore();
+  const sync = useSync();
   const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const session = state.sessions.find((s) => s.id === sessionId);
   const workout = session ? state.workouts.find((w) => w.id === session.workoutId) : null;
@@ -81,6 +86,29 @@ export function Resumo() {
                 </p>
               </li>
             ))}
+          {c.items
+            .filter((i) => i.replacedName && !i.skipped)
+            .map((i) => (
+              <li key={`sw-${i.exerciseId}`} className="reading-item">
+                <span className="ri-icon ri-up">
+                  <IconCheck size={14} stroke={2.6} />
+                </span>
+                <p>
+                  <b>{i.name}</b> no lugar de {i.replacedName?.toLowerCase()} — vale igual.
+                </p>
+              </li>
+            ))}
+          {c.extras.map((i) => (
+            <li key={`ex-${i.exerciseId}`} className="reading-item">
+              <span className="ri-icon ri-extra">
+                <IconPlus size={14} stroke={2.6} />
+              </span>
+              <p>
+                <b>{i.name}</b> — {i.doneSets}{" "}
+                {i.doneSets === 1 ? "série a mais" : "séries a mais"}, fora do plano.
+              </p>
+            </li>
+          ))}
           {c.skips.map((i) => (
             <li key={i.exerciseId} className="reading-item">
               <span className="ri-icon ri-skip">·</span>
@@ -89,7 +117,10 @@ export function Resumo() {
               </p>
             </li>
           ))}
-          {c.records.length === 0 && c.loadUps.length === 0 && c.skips.length === 0 && (
+          {c.records.length === 0 &&
+            c.loadUps.length === 0 &&
+            c.skips.length === 0 &&
+            c.extras.length === 0 && (
             <li className="reading-item">
               <span className="ri-icon ri-up">
                 <IconCheck size={15} stroke={2.6} />
@@ -118,10 +149,29 @@ export function Resumo() {
         >
           📸 Check-in do desafio
         </BigButton>
+        <BigButton onClick={() => navigate(`/treino/${session.id}`)} tone="ghost">
+          Corrigir esse treino
+        </BigButton>
         <BigButton onClick={() => navigate("/treino?seg=progressao", { replace: true })} tone="ghost">
           Ver progressão
         </BigButton>
+        <button className="resumo-delete" onClick={() => setConfirmDelete(true)}>
+          Apagar esse treino
+        </button>
       </div>
+
+      {confirmDelete && (
+        <ConfirmSheet
+          title={`Apagar o treino de ${formatShort(session.date)}?`}
+          text="Sai do histórico, da progressão e da presença desse dia. Se você fez outro treino no mesmo dia, a presença continua. O plano não muda."
+          confirmLabel="Apagar treino"
+          onConfirm={async () => {
+            await sync.deleteSession(session.id);
+            navigate("/treino?seg=progressao", { replace: true });
+          }}
+          onClose={() => setConfirmDelete(false)}
+        />
+      )}
     </main>
   );
 }

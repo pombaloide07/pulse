@@ -10,6 +10,7 @@ import type {
   AppState,
   Challenge,
   Dish,
+  ExerciseLog,
   MealEntry,
   NotifyPrefs,
   PlanItem,
@@ -32,7 +33,27 @@ type Action =
   | { type: "SET_LOG"; sessionId: string; exerciseId: string; setIndex: number; load: number; reps: number }
   | { type: "TOGGLE_SET"; sessionId: string; exerciseId: string; setIndex: number }
   | { type: "FINISH_SESSION"; sessionId: string }
-  | { type: "DISCARD_SESSION"; sessionId: string }
+  | { type: "DELETE_SESSION"; sessionId: string }
+  | { type: "SET_SESSION_DATE"; sessionId: string; date: string }
+  | {
+      type: "ADD_SESSION_EXERCISE";
+      sessionId: string;
+      exerciseId: string;
+      sets: number;
+      reps: number;
+      load: number;
+    }
+  | {
+      type: "REPLACE_SESSION_EXERCISE";
+      sessionId: string;
+      fromExerciseId: string;
+      toExerciseId: string;
+      reps: number;
+      load: number;
+    }
+  | { type: "REMOVE_SESSION_EXERCISE"; sessionId: string; exerciseId: string }
+  | { type: "ADD_SESSION_SET"; sessionId: string; exerciseId: string }
+  | { type: "REMOVE_SESSION_SET"; sessionId: string; exerciseId: string }
   | { type: "UPDATE_WORKOUT"; workout: Workout }
   | { type: "ADD_WORKOUT"; workout: Workout }
   | { type: "DELETE_WORKOUT"; id: string }
@@ -43,15 +64,54 @@ type Action =
   | { type: "SET_NOTIFY"; patch: Partial<NotifyPrefs> }
   | { type: "SET_NAME"; name: string }
   | { type: "LOG_MEALS"; entries: MealEntry[] }
+  | { type: "UPDATE_MEAL"; entry: MealEntry }
   | { type: "REMOVE_MEAL"; id: string }
   | { type: "ADD_DISH"; dish: Dish }
   | { type: "UPDATE_DISH"; dish: Dish }
   | { type: "DELETE_DISH"; id: string }
   | { type: "LOG_WEIGHT"; date: string; kg: number }
+  | { type: "REMOVE_WEIGHT"; date: string }
   | { type: "ADD_CHALLENGE"; challenge: Challenge }
   | { type: "ONBOARD"; name: string }
   | { type: "HYDRATE"; state: AppState }
   | { type: "RESET" };
+
+/**
+ * Tira uma data da minha presença — mas só se nenhum outro treino concluído
+ * tiver sobrado nela. Subtrai em vez de recalcular a lista inteira: dá pra ter
+ * dois treinos no mesmo dia, e presença antiga vinda de outro aparelho não
+ * pode sumir só porque a sessão dela não está neste.
+ */
+function forgetPresence(state: AppState, iso: string): AppState {
+  if (state.sessions.some((s) => s.finishedAt && s.date === iso)) return state;
+  return {
+    ...state,
+    members: state.members.map((m) =>
+      m.isMe ? { ...m, presence: m.presence.filter((d) => d !== iso) } : m
+    ),
+  };
+}
+
+function markPresence(state: AppState, iso: string): AppState {
+  return {
+    ...state,
+    members: state.members.map((m) =>
+      m.isMe && !m.presence.includes(iso) ? { ...m, presence: [...m.presence, iso] } : m
+    ),
+  };
+}
+
+/** Aplica uma mudança nos logs de uma sessão, preservando o resto do estado. */
+function patchLogs(
+  state: AppState,
+  sessionId: string,
+  fn: (logs: ExerciseLog[]) => ExerciseLog[]
+): AppState {
+  return {
+    ...state,
+    sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, logs: fn(s.logs) } : s)),
+  };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -144,25 +204,103 @@ function reducer(state: AppState, action: Action): AppState {
     case "FINISH_SESSION": {
       const session = state.sessions.find((s) => s.id === action.sessionId);
       if (!session) return state;
-      return {
-        ...state,
-        activeSessionId: null,
-        sessions: state.sessions.map((s) =>
-          s.id === action.sessionId ? { ...s, finishedAt: Date.now() } : s
-        ),
-        members: state.members.map((m) =>
-          m.isMe && !m.presence.includes(session.date)
-            ? { ...m, presence: [...m.presence, session.date] }
-            : m
-        ),
-      };
+      // treino já concluído não reescreve finishedAt: reabrir pra corrigir uma
+      // carga não pode mudar a duração nem a ordem da rotação
+      if (session.finishedAt) return state;
+      return markPresence(
+        {
+          ...state,
+          activeSessionId: null,
+          sessions: state.sessions.map((s) =>
+            s.id === action.sessionId ? { ...s, finishedAt: Date.now() } : s
+          ),
+        },
+        session.date
+      );
     }
-    case "DISCARD_SESSION": {
-      return {
+    case "DELETE_SESSION": {
+      const session = state.sessions.find((s) => s.id === action.sessionId);
+      if (!session) return state;
+      const next: AppState = {
         ...state,
-        activeSessionId: null,
         sessions: state.sessions.filter((s) => s.id !== action.sessionId),
+        activeSessionId:
+          state.activeSessionId === action.sessionId ? null : state.activeSessionId,
       };
+      // treino em andamento nunca marcou presença; concluído pode ter marcado
+      return session.finishedAt ? forgetPresence(next, session.date) : next;
+    }
+    case "SET_SESSION_DATE": {
+      const session = state.sessions.find((s) => s.id === action.sessionId);
+      if (!session || session.date === action.date) return state;
+      // meio-dia do dia novo: mantém a ordem certa na rotação e na progressão
+      const when = fromISO(action.date).getTime() + 12 * 3600 * 1000;
+      const moved: AppState = {
+        ...state,
+        sessions: state.sessions.map((s) =>
+          s.id === action.sessionId
+            ? { ...s, date: action.date, startedAt: when, finishedAt: s.finishedAt ? when : null }
+            : s
+        ),
+      };
+      if (!session.finishedAt) return moved;
+      // a presença acompanha: entra no dia novo, sai do antigo se ficou vazio
+      return forgetPresence(markPresence(moved, action.date), session.date);
+    }
+    case "ADD_SESSION_EXERCISE": {
+      return patchLogs(state, action.sessionId, (logs) =>
+        logs.some((l) => l.exerciseId === action.exerciseId)
+          ? logs
+          : [
+              ...logs,
+              {
+                exerciseId: action.exerciseId,
+                extra: true,
+                sets: Array.from({ length: action.sets }, () => ({
+                  load: action.load,
+                  reps: action.reps,
+                  done: false,
+                })),
+              },
+            ]
+      );
+    }
+    case "REPLACE_SESSION_EXERCISE": {
+      return patchLogs(state, action.sessionId, (logs) =>
+        logs.some((l) => l.exerciseId === action.toExerciseId)
+          ? logs
+          : logs.map((l) => {
+              if (l.exerciseId !== action.fromExerciseId) return l;
+              // série já marcada não é reescrita — a carga do antigo viraria
+              // recorde do novo. A tela só oferece trocar enquanto está zerado.
+              if (l.sets.some((x) => x.done)) return l;
+              return {
+                exerciseId: action.toExerciseId,
+                // continua ocupando a vaga do plano: não é extra nem pulado
+                replacedId: l.replacedId ?? action.fromExerciseId,
+                sets: l.sets.map(() => ({ load: action.load, reps: action.reps, done: false })),
+              };
+            })
+      );
+    }
+    case "REMOVE_SESSION_EXERCISE": {
+      return patchLogs(state, action.sessionId, (logs) =>
+        logs.filter((l) => l.exerciseId !== action.exerciseId)
+      );
+    }
+    case "ADD_SESSION_SET":
+    case "REMOVE_SESSION_SET": {
+      return patchLogs(state, action.sessionId, (logs) =>
+        logs.map((l) => {
+          if (l.exerciseId !== action.exerciseId) return l;
+          if (action.type === "REMOVE_SESSION_SET") {
+            return l.sets.length <= 1 ? l : { ...l, sets: l.sets.slice(0, -1) };
+          }
+          if (l.sets.length >= 12) return l;
+          const last = l.sets[l.sets.length - 1] ?? { load: 0, reps: 10, done: false };
+          return { ...l, sets: [...l.sets, { load: last.load, reps: last.reps, done: false }] };
+        })
+      );
     }
     case "UPDATE_WORKOUT": {
       return {
@@ -239,6 +377,12 @@ function reducer(state: AppState, action: Action): AppState {
         meals: [...state.meals, ...action.entries.filter((e) => !ids.has(e.id))],
       };
     }
+    case "UPDATE_MEAL": {
+      return {
+        ...state,
+        meals: state.meals.map((m) => (m.id === action.entry.id ? action.entry : m)),
+      };
+    }
     case "REMOVE_MEAL": {
       return { ...state, meals: state.meals.filter((m) => m.id !== action.id) };
     }
@@ -256,8 +400,13 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, dishes: state.dishes.filter((d) => d.id !== action.id) };
     }
     case "LOG_WEIGHT": {
+      // o limite deixou de ser só da tela: agora duas telas escrevem peso
+      const kg = Math.min(300, Math.max(30, +action.kg.toFixed(1)));
       const others = state.weights.filter((w) => w.date !== action.date);
-      return { ...state, weights: [...others, { date: action.date, kg: action.kg }] };
+      return { ...state, weights: [...others, { date: action.date, kg }] };
+    }
+    case "REMOVE_WEIGHT": {
+      return { ...state, weights: state.weights.filter((w) => w.date !== action.date) };
     }
     case "ADD_CHALLENGE": {
       if (state.challenges.some((c) => c.id === action.challenge.id)) return state;
@@ -302,7 +451,9 @@ function loadInitial(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
-      if (parsed.version === 3) return parsed;
+      // estado gravado por uma versão mais nova do app (outro aparelho já
+      // atualizou): preserva. Cair no seed aqui apagaria dados de verdade.
+      if (parsed.version >= 3) return parsed;
       if (parsed.version === 2) return migrateV2toV3(parsed);
       if (parsed.version === 1) return migrateV2toV3(migrateV1toV2(parsed));
     }

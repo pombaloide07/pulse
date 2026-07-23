@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
-import { FOOD_GROUPS, searchLocalFoods } from "../lib/foods";
+import { FOOD_BY_ID, FOOD_GROUPS, searchLocalFoods } from "../lib/foods";
 import { Portal } from "../components/Portal";
 import type { Food, MealEntry } from "../lib/types";
 import {
@@ -14,12 +14,14 @@ import {
   periodAvg,
   dailySeries,
   latestWeight,
+  rescaleMeal,
 } from "../lib/nutrition";
 import { fmtDec1, fmtInt as fmt } from "../lib/format";
-import { addDays, formatLong, fromISO, toISO, todayISO } from "../lib/dates";
+import { addDays, formatLong, formatShort, fromISO, toISO, todayISO } from "../lib/dates";
 import { DailyBars } from "../components/charts";
 import { IconChevronRight, IconMinus, IconPlus, IconX } from "../components/icons";
-import { BigButton, Sheet } from "../components/ui";
+import { BigButton, ConfirmSheet, Sheet } from "../components/ui";
+import { Field } from "./PlanoEditor";
 import "./dieta.css";
 
 const hhmm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
@@ -40,7 +42,10 @@ export function Dieta() {
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const today = todayISO();
-  const entries = useMemo(() => dayEntries(state, today), [state, today]);
+  // o dia que a lista de refeições está mostrando — hero e médias são sempre de hoje
+  const [day, setDay] = useState(today);
+  const [editing, setEditing] = useState<MealEntry | null>(null);
+  const entries = useMemo(() => dayEntries(state, day), [state, day]);
   const totals = useMemo(() => dayTotals(state, today), [state, today]);
   const t = state.profile.targets;
   const hide = state.profile.hideNumbers;
@@ -59,6 +64,19 @@ export function Dieta() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2000);
   };
 
+  /**
+   * Onde o lançamento cai: no dia que a lista está mostrando. Em dia passado
+   * entra ao meio-dia, do mesmo jeito que o lançamento rápido de treino faz.
+   * todayISO() na hora do toque — a data do render envelhece se o app
+   * atravessa a meia-noite aberto.
+   */
+  const logSlot = () => {
+    const now = todayISO();
+    return day === now
+      ? { date: now, minutes: nowMinutes() }
+      : { date: day, minutes: 12 * 60 };
+  };
+
   const logDish = (dishId: string) => {
     const dish = state.dishes.find((d) => d.id === dishId);
     if (!dish) return;
@@ -68,10 +86,7 @@ export function Dieta() {
       entries: [
         {
           id: newId(),
-          // todayISO() na hora do toque — a data do render envelhece se o app
-          // atravessa a meia-noite aberto
-          date: todayISO(),
-          minutes: nowMinutes(),
+          ...logSlot(),
           name: dish.name,
           grams: dishGrams(dish),
           macros: m,
@@ -81,6 +96,12 @@ export function Dieta() {
     });
     showToast(`${dish.icon} ${dish.name} — registrado`);
   };
+
+  // hoje + 6 dias pra trás: cobre "esqueci de lançar" sem virar calendário
+  const dayStrip = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => toISO(addDays(fromISO(today), -i))),
+    [today]
+  );
 
   const yesterdayEntries = useMemo(() => {
     const y = toISO(addDays(fromISO(today), -1));
@@ -180,23 +201,37 @@ export function Dieta() {
       </section>
 
       <section className="card dieta-today rise">
-        <p className="eyebrow">Refeições de hoje</p>
+        <p className="eyebrow">
+          {day === today ? "Refeições de hoje" : `Refeições de ${formatShort(day)}`}
+        </p>
+        <div className="picker-filters dieta-days">
+          {dayStrip.map((iso, i) => (
+            <button
+              key={iso}
+              className={`pf ${day === iso ? "pf-on" : ""}`}
+              onClick={() => setDay(iso)}
+            >
+              {i === 0 ? "hoje" : i === 1 ? "ontem" : formatShort(iso)}
+            </button>
+          ))}
+        </div>
         {entries.length === 0 ? (
           <p className="dieta-empty">
-            Nada ainda. Um toque num prato ali em cima resolve — registrar não pode ser
-            mais difícil que comer.
+            {day === today
+              ? "Nada ainda. Um toque num prato ali em cima resolve — registrar não pode ser mais difícil que comer."
+              : "Nada registrado nesse dia. Dá pra lançar agora: os pratos ali em cima entram nele."}
           </p>
         ) : (
           <ul>
             {entries.map((e) => (
               <li key={e.id}>
                 <span className="de-time serif-num">{hhmm(e.minutes)}</span>
-                <div className="de-info">
+                <button className="de-info" onClick={() => setEditing(e)}>
                   <b>{e.name}</b>
                   <small>
                     {fmt(e.macros.prot)}g prot{!hide && ` · ${fmt(e.macros.kcal)} kcal`}
                   </small>
-                </div>
+                </button>
                 <button
                   className="de-x"
                   aria-label={`Remover ${e.name}`}
@@ -207,6 +242,9 @@ export function Dieta() {
               </li>
             ))}
           </ul>
+        )}
+        {entries.length > 0 && (
+          <p className="dieta-edit-hint">Errou a quantidade ou a hora? Toque no lançamento.</p>
         )}
       </section>
 
@@ -270,8 +308,7 @@ export function Dieta() {
               entries: [
                 {
                   id: newId(),
-                  date: todayISO(),
-                  minutes: nowMinutes(),
+                  ...logSlot(),
                   name: food.name,
                   grams,
                   macros: foodMacros(food, grams),
@@ -285,12 +322,103 @@ export function Dieta() {
         />
       )}
 
+      {editing && (
+        <MealEditSheet
+          entry={editing}
+          onClose={() => setEditing(null)}
+          onSave={(entry) => {
+            dispatch({ type: "UPDATE_MEAL", entry });
+            setEditing(null);
+            showToast(`${entry.name} — corrigido`);
+          }}
+          onDelete={(id) => {
+            dispatch({ type: "REMOVE_MEAL", id });
+            setEditing(null);
+          }}
+        />
+      )}
+
       {toast && (
         <Portal>
           <div className="toast">{toast}</div>
         </Portal>
       )}
     </main>
+  );
+}
+
+/* ————— corrigir um lançamento (quantidade, hora, dia) ————— */
+
+function MealEditSheet({
+  entry,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  entry: MealEntry;
+  onClose: () => void;
+  onSave: (entry: MealEntry) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [grams, setGrams] = useState(entry.grams);
+  const [minutes, setMinutes] = useState(entry.minutes);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // o degrau segue a porção do alimento quando ele existe na base local
+  const food = entry.source?.kind === "food" ? FOOD_BY_ID[entry.source.id] : undefined;
+  const step = food ? gramsStep(food, 25) : 25;
+  const macros = rescaleMeal({ ...entry }, grams);
+  const bump = (delta: number) => setMinutes((m) => (m + delta + 1440) % 1440);
+
+  if (confirmDelete) {
+    return (
+      <ConfirmSheet
+        title={`Apagar ${entry.name}?`}
+        text="Some do dia e das médias. Registrar de novo leva um toque."
+        confirmLabel="Apagar lançamento"
+        onConfirm={() => onDelete(entry.id)}
+        onClose={() => setConfirmDelete(false)}
+      />
+    );
+  }
+
+  return (
+    <Sheet title={entry.name} onClose={onClose}>
+      <div className="food-qty">
+        <button onClick={() => setGrams(Math.max(5, grams - step))} aria-label="Menos">
+          <IconMinus size={18} />
+        </button>
+        <span>
+          <b className="serif-num">{grams}</b>
+          <small>g</small>
+        </span>
+        <button onClick={() => setGrams(grams + step)} aria-label="Mais">
+          <IconPlus size={18} stroke={2} />
+        </button>
+      </div>
+
+      <div className="meal-time">
+        <Field label="hora" value={String(Math.floor(minutes / 60))} onDec={() => bump(-60)} onInc={() => bump(60)} />
+        <Field
+          label="minuto"
+          value={String(minutes % 60).padStart(2, "0")}
+          onDec={() => bump(-5)}
+          onInc={() => bump(5)}
+        />
+      </div>
+
+      <p className="food-macros">
+        {fmt(macros.kcal)} kcal · {fmt(macros.prot)}g prot · {fmt(macros.carb)}g carb ·{" "}
+        {fmt(macros.fat)}g gord
+      </p>
+
+      <BigButton onClick={() => onSave({ ...entry, grams, minutes, macros })} tone="pulse">
+        Salvar correção
+      </BigButton>
+      <button className="editor-delete" onClick={() => setConfirmDelete(true)}>
+        Apagar lançamento
+      </button>
+    </Sheet>
   );
 }
 

@@ -36,6 +36,15 @@ export interface CheckinInfo {
   createdAt: string;
 }
 
+/** Um comentário na foto de check-in de alguém. */
+export interface CommentInfo {
+  id: string;
+  checkinId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+}
+
 /** Amigo (ou pedido de amizade) na lista. */
 export interface FriendInfo {
   id: string;
@@ -81,6 +90,13 @@ interface SyncValue {
   setActiveGroup: (groupId: string) => Promise<string | null>;
   /** renomear a turma ativa (qualquer membro pode) */
   renameGroup: (name: string) => Promise<string | null>;
+  /**
+   * Apaga um treino registrado: o estado local e, quando não sobra nenhum
+   * outro treino concluído naquele dia, a linha de presença no servidor.
+   * É o único caminho de exclusão — a tela nunca despacha DELETE_SESSION
+   * sozinha, senão a presença ficaria órfã pro grupo e pros desafios.
+   */
+  deleteSession: (sessionId: string) => Promise<void>;
   /** logado com conta nova (sem estado na nuvem) — precisa escolher o nome */
   needsOnboarding: boolean;
   /** veio de um link de recuperação de senha — precisa definir a nova */
@@ -112,6 +128,10 @@ interface SyncValue {
   /* check-ins por foto */
   checkins: CheckinInfo[] | null;
   checkIn: (file: File | Blob, challengeIds: string[]) => Promise<string | null>;
+  /** comentários por check-in (checkinId → lista, mais antigo primeiro) */
+  comments: Record<string, CommentInfo[]> | null;
+  addComment: (checkinId: string, body: string) => Promise<string | null>;
+  removeComment: (commentId: string) => Promise<string | null>;
   /* amizades */
   friendList: FriendInfo[] | null;
   addFriend: (code: string) => Promise<string | null>;
@@ -156,6 +176,27 @@ function markOnboarded(uid: string) {
   }
 }
 
+/* Edição feita e ainda não confirmada pela nuvem. O push tem 2,5s de espera;
+   fechar o app antes disso deixaria o snapshot remoto mais velho que o local,
+   e a próxima abertura hidrataria por cima — na prática, o treino que você
+   apagou voltaria. Com a marca, a abertura empurra em vez de puxar. */
+const dirtyKey = (uid: string) => `pulse-dirty-${uid}`;
+function isDirty(uid: string): boolean {
+  try {
+    return localStorage.getItem(dirtyKey(uid)) === "1";
+  } catch {
+    return false;
+  }
+}
+function setDirty(uid: string, on: boolean) {
+  try {
+    if (on) localStorage.setItem(dirtyKey(uid), "1");
+    else localStorage.removeItem(dirtyKey(uid));
+  } catch {
+    /* sem localStorage: volta ao comportamento antigo */
+  }
+}
+
 interface ChallengeRow {
   id: string;
   name: string;
@@ -196,6 +237,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
   const [myFriendCode, setMyFriendCode] = useState<string | null>(null);
   const [checkins, setCheckins] = useState<CheckinInfo[] | null>(null);
+  const [comments, setComments] = useState<Record<string, CommentInfo[]> | null>(null);
   const [friendList, setFriendList] = useState<FriendInfo[] | null>(null);
   // incrementa quando a rede volta, pra re-rodar o bootstrap (offline → online)
   const [reconnectTick, setReconnectTick] = useState(0);
@@ -269,6 +311,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setMyAvatarUrl(null);
       setMyFriendCode(null);
       setCheckins(null);
+      setComments(null);
       setFriendList(null);
       canPushRef.current = false;
       hydratedUidRef.current = null;
@@ -344,16 +387,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           )
           .then(({ error }) => {
             if (error) console.warn("state push:", error.message);
+            else setDirty(uid, false);
           });
       if (remote.data?.state) {
+        // snapshot escrito por uma versão mais nova do app (outro aparelho já
+        // atualizou): não sei ler, então também não escrevo por cima
+        const remoteVersion = (remote.data.state as AppState).version;
+        if (typeof remoteVersion === "number" && remoteVersion > 3) {
+          console.warn("estado da nuvem é mais novo que este app; sync desligado");
+          setNeedsOnboarding(false);
+          return;
+        }
         // conta existente: libera o sync e traz o estado da nuvem UMA vez por login.
         // Em refreshes de token (mesmo uid) não re-hidrata — preserva edições locais.
         canPushRef.current = true;
         if (hydratedUidRef.current !== uid) {
           hydratedUidRef.current = uid;
-          if (unsyncedEditsRef.current) {
-            // houve edição local enquanto offline: o local é mais novo que o
-            // snapshot — empurra em vez de puxar (last-write-wins de verdade)
+          if (unsyncedEditsRef.current || isDirty(uid)) {
+            // o local é mais novo que o snapshot — editou offline, ou fechou o
+            // app antes do push sair. Empurra em vez de puxar.
             unsyncedEditsRef.current = false;
             pushLocalNow();
           } else {
@@ -493,6 +545,32 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     );
   }, [session]);
 
+  /* comentários dos check-ins visíveis — a RLS já filtra pelo mesmo critério
+     da foto, então basta pedir os últimos e agrupar por check-in */
+  const loadComments = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from("checkin_comments")
+      .select("id,checkin_id,user_id,body,created_at")
+      .order("created_at", { ascending: true })
+      .limit(1000);
+    if (error) {
+      console.warn("comments fetch:", error.message);
+      return;
+    }
+    const byCheckin: Record<string, CommentInfo[]> = {};
+    for (const r of data ?? []) {
+      (byCheckin[r.checkin_id] ??= []).push({
+        id: r.id,
+        checkinId: r.checkin_id,
+        userId: r.user_id,
+        body: r.body,
+        createdAt: r.created_at,
+      });
+    }
+    setComments(byCheckin);
+  }, [session]);
+
   /* amigos e pedidos */
   const loadFriendList = useCallback(async () => {
     if (!session) return;
@@ -574,6 +652,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (!session) return;
     loadCheckins();
     loadFriendList();
+    loadComments();
     const channel = supabase
       .channel("checkins-live")
       .on(
@@ -587,11 +666,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         { event: "*", schema: "public", table: "friendships" },
         () => loadFriendList()
       )
+      // comentário de alguém aparece na hora pra quem está com a foto aberta
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "checkin_comments" },
+        () => loadComments()
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, loadCheckins, loadFriendList]);
+  }, [session, loadCheckins, loadFriendList, loadComments]);
 
   /* presença sobe quando você aparece — inclui dias recentes lançados
      retroativamente (registro rápido). Janela de 7 dias casa com o limite
@@ -628,6 +713,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       skipPushRef.current = false;
       return;
     }
+    // marca já: entre a edição e o push existe uma janela em que fechar o app
+    // faria a nuvem vencer o local na próxima abertura
+    setDirty(session.user.id, true);
     window.clearTimeout(pushTimerRef.current);
     pushTimerRef.current = window.setTimeout(() => {
       const uid = session.user.id;
@@ -639,6 +727,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         )
         .then(({ error }) => {
           if (error) console.warn("state push:", error.message);
+          else setDirty(uid, false);
         });
       // única coisa de treino que o grupo vê além da presença: variação % de carga.
       // Só sessões reais — o histórico de demonstração ("seed-*") nunca vira stat pública.
@@ -670,6 +759,30 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }, 2500);
     return () => window.clearTimeout(pushTimerRef.current);
   }, [state, session]);
+
+  /* apagar treino: estado local + presença do dia no servidor */
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      const before = stateRef.current;
+      const gone = before.sessions.find((s) => s.id === sessionId);
+      dispatch({ type: "DELETE_SESSION", sessionId });
+      if (!gone?.finishedAt || !session || !canPushRef.current) return;
+      // outro treino no mesmo dia mantém a presença de pé
+      const stillTrained = before.sessions.some(
+        (s) => s.id !== sessionId && s.finishedAt && s.date === gone.date
+      );
+      if (stillTrained) return;
+      const { error } = await supabase
+        .from("presence")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("date", gone.date);
+      if (error) console.warn("presence delete:", error.message);
+      // libera o dia no cache de push: treinar de novo hoje tem que subir
+      pushedPresenceRef.current.delete(gone.date);
+    },
+    [session, dispatch]
+  );
 
   /* onboarding: conta nova escolhe o nome e nasce limpa (sem dados de demo) */
   const onboard = useCallback(
@@ -982,6 +1095,58 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [session, loadCheckins]
   );
 
+  /* ————— comentários no check-in ————— */
+
+  const addComment = useCallback(
+    async (checkinId: string, body: string) => {
+      if (!session) return "entre primeiro";
+      const clean = body.trim().slice(0, 500);
+      if (!clean) return "escreva alguma coisa";
+      const { data, error } = await supabase
+        .from("checkin_comments")
+        .insert({ checkin_id: checkinId, user_id: session.user.id, body: clean })
+        .select("id,checkin_id,user_id,body,created_at")
+        .single();
+      if (error) return error.message;
+      // entra na hora pra quem escreveu; o realtime cuida dos outros
+      setComments((prev) => {
+        const cur = prev?.[checkinId] ?? [];
+        if (cur.some((c) => c.id === data.id)) return prev;
+        return {
+          ...(prev ?? {}),
+          [checkinId]: [
+            ...cur,
+            {
+              id: data.id,
+              checkinId: data.checkin_id,
+              userId: data.user_id,
+              body: data.body,
+              createdAt: data.created_at,
+            },
+          ],
+        };
+      });
+      return null;
+    },
+    [session]
+  );
+
+  const removeComment = useCallback(
+    async (commentId: string) => {
+      if (!session) return "entre primeiro";
+      const { error } = await supabase.from("checkin_comments").delete().eq("id", commentId);
+      if (error) return error.message;
+      setComments((prev) => {
+        if (!prev) return prev;
+        const out: Record<string, CommentInfo[]> = {};
+        for (const [k, list] of Object.entries(prev)) out[k] = list.filter((c) => c.id !== commentId);
+        return out;
+      });
+      return null;
+    },
+    [session]
+  );
+
   /* ————— amizades ————— */
 
   const addFriend = useCallback(
@@ -1082,6 +1247,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setMyAvatarUrl(null);
     setMyFriendCode(null);
     setCheckins(null);
+    setComments(null);
     setFriendList(null);
     // volta ao demo e apaga os dados privados do store/localStorage — senão
     // ficariam visíveis (e disponíveis pro próximo) sob o rótulo "Modo demo"
@@ -1100,6 +1266,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         myGroups,
         setActiveGroup,
         renameGroup,
+        deleteSession,
         needsOnboarding,
         needsNewPassword,
         onboard,
@@ -1122,6 +1289,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         uploadAvatar,
         checkins,
         checkIn,
+        comments,
+        addComment,
+        removeComment,
         friendList,
         addFriend,
         respondFriend,

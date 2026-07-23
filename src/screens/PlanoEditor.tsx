@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../lib/store";
-import { EXERCISES, EXERCISE_BY_ID, MUSCLE_GROUPS } from "../lib/exercises";
+import { EXERCISE_BY_ID } from "../lib/exercises";
 import { loadStep } from "../lib/logic";
 import type { PlanItem } from "../lib/types";
 import { IconBack, IconMinus, IconPlus, IconTrash } from "../components/icons";
-import { BigButton, Sheet } from "../components/ui";
+import { BigButton, ConfirmSheet } from "../components/ui";
+import { ExercisePickerSheet } from "../components/ExercisePicker";
 import "./planoeditor.css";
 
 export function PlanoEditor() {
@@ -13,7 +14,6 @@ export function PlanoEditor() {
   const { state, dispatch } = useStore();
   const navigate = useNavigate();
   const [picking, setPicking] = useState(false);
-  const [filter, setFilter] = useState<string>("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const workout = state.workouts.find((w) => w.id === workoutId);
@@ -44,10 +44,6 @@ export function PlanoEditor() {
   };
 
   const clampSets = (n: number) => Math.min(8, Math.max(1, n));
-
-  const candidates = EXERCISES.filter(
-    (e) => !inPlan.has(e.id) && (!filter || e.muscle === filter)
-  );
 
   return (
     <main className="screen editor">
@@ -144,72 +140,32 @@ export function PlanoEditor() {
       )}
 
       {confirmDelete && (
-        <Sheet onClose={() => setConfirmDelete(false)}>
-          <h2>Excluir treino {workout.letter}?</h2>
-          <p>
-            O histórico dos treinos já feitos continua na progressão. Os dias da semana que
-            usavam ele viram descanso.
-          </p>
-          <BigButton
-            onClick={() => {
-              dispatch({ type: "DELETE_WORKOUT", id: workout.id });
-              navigate("/treino", { replace: true });
-            }}
-            tone="pulse"
-          >
-            Excluir treino
-          </BigButton>
-          <BigButton onClick={() => setConfirmDelete(false)} tone="ghost">
-            Cancelar
-          </BigButton>
-        </Sheet>
+        <ConfirmSheet
+          title={`Excluir treino ${workout.letter}?`}
+          text="O histórico dos treinos já feitos continua na progressão. Os dias da semana que usavam ele viram descanso."
+          confirmLabel="Excluir treino"
+          onConfirm={() => {
+            dispatch({ type: "DELETE_WORKOUT", id: workout.id });
+            navigate("/treino", { replace: true });
+          }}
+          onClose={() => setConfirmDelete(false)}
+        />
       )}
 
       {picking && (
-        <Sheet title="Adicionar exercício" onClose={() => setPicking(false)} className="picker">
-            <div className="picker-filters">
-              <button
-                className={`pf ${filter === "" ? "pf-on" : ""}`}
-                onClick={() => setFilter("")}
-              >
-                Todos
-              </button>
-              {MUSCLE_GROUPS.map((m) => (
-                <button
-                  key={m}
-                  className={`pf ${filter === m ? "pf-on" : ""}`}
-                  onClick={() => setFilter(m)}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            <ul className="picker-list">
-              {candidates.map((e) => (
-                <li key={e.id}>
-                  <button
-                    onClick={() => {
-                      dispatch({
-                        type: "ADD_PLAN_ITEM",
-                        workoutId: workout.id,
-                        item: { exerciseId: e.id, sets: 3, targetReps: 10, targetLoad: 10 },
-                      });
-                      setPicking(false);
-                    }}
-                  >
-                    <span>
-                      <b>{e.name}</b>
-                      <small>
-                        {e.muscle} · {e.equipment}
-                      </small>
-                    </span>
-                    <IconPlus size={18} />
-                  </button>
-                </li>
-              ))}
-              {candidates.length === 0 && <li className="picker-empty">Tudo desse grupo já está no treino.</li>}
-            </ul>
-        </Sheet>
+        <ExercisePickerSheet
+          title="Adicionar exercício"
+          excludeIds={inPlan}
+          onClose={() => setPicking(false)}
+          onPick={(exerciseId) => {
+            dispatch({
+              type: "ADD_PLAN_ITEM",
+              workoutId: workout.id,
+              item: { exerciseId, sets: 3, targetReps: 10, targetLoad: 10 },
+            });
+            setPicking(false);
+          }}
+        />
       )}
     </main>
   );

@@ -1,22 +1,21 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
 import { Avatar, BigButton, Sheet } from "./ui";
-import { IconCheck } from "./icons";
 import "./account.css";
 
 /* ————— entrar / criar conta (e-mail + senha) —————
-   Login normal é só e-mail e senha. A confirmação por e-mail existe apenas
-   na criação da conta (e no "esqueci a senha"). */
+   Login e cadastro são só e-mail e senha, sem etapa de confirmação. O e-mail
+   só entra em cena no "esqueci a senha". */
 
-type LoginMode = "entrar" | "criar" | "confirmar" | "esqueci" | "esqueci-ok";
+type LoginMode = "entrar" | "criar" | "esqueci" | "esqueci-ok";
 
 export function LoginSheet({ onClose }: { onClose: () => void }) {
   const sync = useSync();
   const [mode, setMode] = useState<LoginMode>("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,24 +33,14 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
 
   const doSignIn = () => run(() => sync.signIn(email.trim(), password), onClose);
 
-  const doSignUp = async () => {
-    setBusy(true);
-    setError(null);
-    const r = await sync.signUp(email.trim(), password);
-    setBusy(false);
-    if (r.error) setError(r.error);
-    else if (r.needsConfirm) setMode("confirmar");
-    else onClose(); // projeto sem confirmação: já entrou
-  };
-
-  const doConfirm = () => run(() => sync.confirmSignup(email.trim(), code), onClose);
+  // cadastro sem confirmação: entra direto
+  const doSignUp = () => run(() => sync.signUp(email.trim(), password), onClose);
 
   const doReset = () =>
     run(() => sync.resetPassword(email.trim()), () => setMode("esqueci-ok"));
 
   const title =
     mode === "criar" ? "Criar conta"
-    : mode === "confirmar" ? "Confirme seu e-mail"
     : mode === "esqueci" || mode === "esqueci-ok" ? "Recuperar senha"
     : "Entrar";
 
@@ -98,7 +87,7 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
       {mode === "criar" && (
         <>
           <p className="conn-note">
-            E-mail e senha — você só confirma o e-mail uma vez, na criação.
+            E-mail e senha e pronto — sem etapa de confirmação, você já entra.
           </p>
           <input
             className="food-search"
@@ -119,36 +108,13 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
           />
           {error && <p className="conn-error">{error}</p>}
           <BigButton onClick={doSignUp} tone="pulse" disabled={busy || !emailOk || !passOk}>
-            {busy ? "Criando…" : "Criar conta"}
+            {busy ? "Criando…" : "Criar conta e entrar"}
           </BigButton>
           <div className="login-links">
             <button onClick={() => { setError(null); setMode("entrar"); }}>
               Já tenho conta — entrar
             </button>
           </div>
-        </>
-      )}
-
-      {mode === "confirmar" && (
-        <>
-          <p className="conn-note">
-            Mandei um e-mail pra <b>{email}</b>. Clica no link de confirmação (neste
-            navegador) — ou, se vier um código, digita aqui:
-          </p>
-          <input
-            className="food-search conn-code-input"
-            inputMode="numeric"
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
-          {error && <p className="conn-error">{error}</p>}
-          <BigButton onClick={doConfirm} tone="pulse" disabled={busy || code.trim().length < 6}>
-            {busy ? "Conferindo…" : "Confirmar código"}
-          </BigButton>
-          <BigButton onClick={onClose} tone="ghost">
-            Vou clicar no link
-          </BigButton>
         </>
       )}
 
@@ -282,161 +248,22 @@ export function GroupSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ————— sua conta (logado) / modo demo (deslogado) ————— */
+/* ————— modo demo (deslogado): entrar ou criar conta ————— */
 
-function AccountSheet({ onClose }: { onClose: () => void }) {
-  const { state } = useStore();
-  const sync = useSync();
-  const me = state.members.find((m) => m.isMe);
-  const [sub, setSub] = useState<"login" | "grupo" | null>(null);
-  const [confirmOut, setConfirmOut] = useState(false);
-  const [copied, setCopied] = useState<"grupo" | "amigo" | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const [avatarErr, setAvatarErr] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+function DemoSheet({ onClose }: { onClose: () => void }) {
+  const [login, setLogin] = useState(false);
 
-  const logout = async () => {
-    if (!confirmOut) {
-      setConfirmOut(true);
-      window.setTimeout(() => setConfirmOut(false), 3000);
-      return;
-    }
-    await sync.signOut();
-    onClose();
-  };
-
-  const copy = async (text: string, which: "grupo" | "amigo") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(which);
-      window.setTimeout(() => setCopied(null), 1600);
-    } catch {
-      /* clipboard indisponível — o código está visível de qualquer forma */
-    }
-  };
-
-  const pickAvatar = async (file: File | undefined) => {
-    if (!file) return;
-    setAvatarBusy(true);
-    setAvatarErr(null);
-    const err = await sync.uploadAvatar(file);
-    setAvatarBusy(false);
-    if (err) setAvatarErr(err);
-  };
-
+  if (login) return <LoginSheet onClose={onClose} />;
   return (
-    <>
-      {/* esconde o sheet de conta enquanto um sub-sheet (login/grupo) está aberto,
-          pra não empilhar dois backdrops full-screen no mesmo portal-root */}
-      {sub === null && (
-      <Sheet title={sync.session ? "Sua conta" : "Modo demonstração"} onClose={onClose}>
-            {sync.session ? (
-              <>
-                <div className="acc-identity">
-                  <button
-                    className="acc-avatar-btn"
-                    onClick={() => fileRef.current?.click()}
-                    aria-label="Trocar foto de perfil"
-                    disabled={avatarBusy}
-                  >
-                    <Avatar
-                      initials={me?.initials ?? "??"}
-                      color={me?.color ?? "#e4573d"}
-                      photoUrl={sync.myAvatarUrl}
-                      size={56}
-                    />
-                    <span className="acc-avatar-edit">{avatarBusy ? "…" : "foto"}</span>
-                  </button>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={(e) => {
-                      pickAvatar(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                  <div className="acc-id-info">
-                    <b>{state.userName || "Você"}</b>
-                    <small>{sync.session.user.email ?? "conta conectada"}</small>
-                  </div>
-                </div>
-                {avatarErr && <p className="conn-error">{avatarErr}</p>}
-
-                {sync.myFriendCode && (
-                  <div className="acc-group">
-                    <p className="eyebrow">Amizades</p>
-                    <div className="acc-code-row">
-                      <span>
-                        seu código de amigo: <b className="conn-code">{sync.myFriendCode}</b>
-                      </span>
-                      <button className="acc-copy" onClick={() => copy(sync.myFriendCode!, "amigo")}>
-                        {copied === "amigo" ? (
-                          <>
-                            <IconCheck size={13} stroke={3} /> copiado
-                          </>
-                        ) : (
-                          "copiar"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {sync.group ? (
-                  <div className="acc-group">
-                    <p className="eyebrow">Grupo</p>
-                    <b>{sync.group.name}</b>
-                    <div className="acc-code-row">
-                      <span>
-                        código de convite: <b className="conn-code">{sync.group.invite_code}</b>
-                      </span>
-                      <button
-                        className="acc-copy"
-                        onClick={() => copy(sync.group!.invite_code, "grupo")}
-                      >
-                        {copied === "grupo" ? (
-                          <>
-                            <IconCheck size={13} stroke={3} /> copiado
-                          </>
-                        ) : (
-                          "copiar"
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <BigButton onClick={() => setSub("grupo")} tone="ghost">
-                    Entrar num grupo
-                  </BigButton>
-                )}
-
-                <BigButton onClick={logout} tone="ink">
-                  {confirmOut ? "Tocar de novo pra sair" : "Sair da conta"}
-                </BigButton>
-                <p className="acc-note">
-                  Seus dados ficam salvos na nuvem e voltam em qualquer aparelho.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="conn-note">
-                  Você está vendo dados de exemplo, salvos só neste aparelho. Entre pra ter sua
-                  conta de verdade e sincronizar com o grupo.
-                </p>
-                <BigButton onClick={() => setSub("login")} tone="pulse">
-                  Entrar ou criar conta
-                </BigButton>
-              </>
-            )}
-      </Sheet>
-      )}
-
-      {/* sub-sheets atados à sessão: se ela cair por baixo, desmontam junto */}
-      {!sync.session && sub === "login" && <LoginSheet onClose={() => setSub(null)} />}
-      {sync.session && sub === "grupo" && <GroupSheet onClose={() => setSub(null)} />}
-    </>
+    <Sheet title="Modo demonstração" onClose={onClose}>
+      <p className="conn-note">
+        Você está vendo dados de exemplo, salvos só neste aparelho. Entre pra ter sua
+        conta de verdade e sincronizar com o grupo.
+      </p>
+      <BigButton onClick={() => setLogin(true)} tone="pulse">
+        Entrar ou criar conta
+      </BigButton>
+    </Sheet>
   );
 }
 
@@ -445,16 +272,18 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
 export function HeaderAccount() {
   const { state } = useStore();
   const sync = useSync();
+  const navigate = useNavigate();
   const me = state.members.find((m) => m.isMe);
   const [open, setOpen] = useState(false);
 
   return (
     <>
       {sync.session ? (
+        // logado: vai direto pra tela de Ajustes (perfil, notificações, sair)
         <button
           className="hoje-account"
-          onClick={() => setOpen(true)}
-          aria-label="Sua conta"
+          onClick={() => navigate("/ajustes")}
+          aria-label="Sua conta e ajustes"
         >
           <Avatar
             initials={me?.initials ?? "??"}
@@ -474,7 +303,7 @@ export function HeaderAccount() {
           Modo demo
         </button>
       )}
-      {open && <AccountSheet onClose={() => setOpen(false)} />}
+      {open && !sync.session && <DemoSheet onClose={() => setOpen(false)} />}
     </>
   );
 }

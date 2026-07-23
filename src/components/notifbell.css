@@ -1,0 +1,104 @@
+/* sino de notificações */
+.notif-bell {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+.notif-bell:active {
+  transform: scale(0.94);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--pulse);
+  color: #fff6f0;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+.notif-empty {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  padding: 12px 6px;
+}
+
+.notif-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.notif-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 10px;
+  border-radius: var(--r-md);
+  align-items: flex-start;
+}
+
+.notif-unread {
+  background: var(--pulse-soft);
+}
+
+.notif-emoji {
+  font-size: 22px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.notif-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notif-text b {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+.notif-text small {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.notif-when {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.notif-clear {
+  display: block;
+  margin: 10px auto 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

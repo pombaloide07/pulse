@@ -334,3 +334,11 @@
   color: var(--ink-3);
   font-size: 12.5px;
 }
+
+/* ações do header (sino + conta) */
+.hoje-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}

@@ -14,13 +14,28 @@ npm run build    # build de produção em dist/
 ```
 
 Deslogado, o app abre na **landing page** (`src/screens/Landing.tsx`): o fluxo
-principal é **e-mail + senha** (a confirmação por e-mail acontece só na criação
-da conta; "esqueci a senha" manda link de recuperação e o app pede a senha nova
-ao voltar). "Explorar sem conta" abre o **modo demonstração** (9 semanas de
-histórico + grupo com 4 amigos, gerados deterministicamente e persistidos em
-`localStorage`; a opção fica na flag `pulse-demo-optin`, limpa no logout). Pra
-resetar a demo: limpe os dados do site no navegador (ou
-`localStorage.removeItem("pulse-state-v1")`).
+principal é **e-mail + senha**, sem etapa de confirmação — cadastro entra na hora
+(o e-mail nasce confirmado por trigger, migração 0009, e o cliente faz login
+direto). O e-mail só aparece no **"esqueci a senha"** (link de recuperação → o app
+pede a senha nova ao voltar, via evento `PASSWORD_RECOVERY`). "Explorar sem conta"
+abre o **modo demonstração** (9 semanas de histórico + grupo com 4 amigos, gerados
+deterministicamente e persistidos em `localStorage`; a opção fica na flag
+`pulse-demo-optin`, limpa no logout). Pra resetar a demo: limpe os dados do site
+no navegador (ou `localStorage.removeItem("pulse-state-v1")`).
+
+**Ajustes** (`src/screens/Ajustes.tsx`, ícone de conta no header → `/ajustes`):
+perfil (foto, nome editável, e-mail), preferências, código de amigo, grupo e
+**sair da conta**. Também é onde ficam as **notificações**.
+
+**Notificações** (`src/lib/notifications.tsx`, sino no header + inbox): um provider
+com detectores que produzem avisos no inbox interno e, com permissão do navegador,
+como notificação do sistema. Tipos: lembrete de treino (no horário que você define
+**por dia da semana** em Ajustes, se ainda não treinou), check-in novo de alguém,
+macro perto do limite (kcal/carbo/gordura em 90–115% da meta), comemoração de 7
+dias seguindo o cronograma, e desafio (te passaram / prazo acabando). Dedupe por
+chave; baseline silencioso no primeiro load pra não spammar; limpa no logout. As
+prefs vivem em `state.notify` (sincronizam). Observação: avisos com o app fechado
+dependeriam de push server + service worker — hoje disparam com o app aberto.
 
 ## O que está implementado
 

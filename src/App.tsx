@@ -16,6 +16,7 @@ import { Pratos } from "./screens/Pratos";
 import { PratoEditor } from "./screens/PratoEditor";
 import { Corpo } from "./screens/Corpo";
 import { Grupo } from "./screens/Grupo";
+import { Ajustes } from "./screens/Ajustes";
 
 export function App() {
   const { needsOnboarding, needsNewPassword, session, ready } = useSync();
@@ -69,6 +70,7 @@ export function App() {
         <Route path="/dieta/pratos/:dishId" element={<PratoEditor />} />
         <Route path="/corpo" element={<Corpo />} />
         <Route path="/grupo" element={<Grupo />} />
+        <Route path="/ajustes" element={<Ajustes />} />
         {/* rota desconhecida (link velho, typo) nunca vira tela em branco */}
         <Route path="*" element={<Hoje />} />
       </Routes>

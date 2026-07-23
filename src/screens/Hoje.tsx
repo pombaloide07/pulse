@@ -17,6 +17,7 @@ import { fmtInt } from "../lib/format";
 import { Avatar, BigButton, Chip, Sheet, WeekStrip } from "../components/ui";
 import { IconCheck, IconChevronRight, IconDiet, IconPulse } from "../components/icons";
 import { HeaderAccount } from "../components/account";
+import { NotifBell } from "../components/NotifBell";
 import { QuickLogSheet } from "../components/QuickLog";
 import "./hoje.css";
 
@@ -79,7 +80,10 @@ export function Hoje() {
             <em>{state.userName}.</em>
           </h1>
         </div>
-        <HeaderAccount />
+        <div className="hoje-head-actions">
+          {sync.session && <NotifBell />}
+          <HeaderAccount />
+        </div>
       </header>
 
       <section className="card week-card rise">

@@ -79,12 +79,12 @@ interface SyncValue {
   /** veio de um link de recuperação de senha — precisa definir a nova */
   needsNewPassword: boolean;
   onboard: (name: string) => Promise<void>;
-  /* auth por e-mail + senha (confirmação por e-mail só no cadastro) */
+  /* auth por e-mail + senha (cadastro entra direto; recuperação por e-mail) */
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<{ error?: string; needsConfirm?: boolean }>;
-  confirmSignup: (email: string, code: string) => Promise<string | null>;
+  signUp: (email: string, password: string) => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
+  updateName: (name: string) => Promise<void>;
   createGroup: (name: string) => Promise<string | null>;
   joinGroup: (code: string) => Promise<string | null>;
   createChallenge: (name: string, days: number) => Promise<string | null>;
@@ -620,23 +620,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (error) return { error: error.message };
-    // com confirmação de e-mail ligada, session vem nula até confirmar
-    return { needsConfirm: !data.session };
-  }, []);
-
-  const confirmSignup = useCallback(async (email: string, code: string) => {
-    const token = code.trim();
-    const first = await supabase.auth.verifyOtp({ email, token, type: "signup" });
-    if (!first.error) return null;
-    // projetos com template antigo emitem OTP tipo "email" — tenta o outro
-    const second = await supabase.auth.verifyOtp({ email, token, type: "email" });
-    return second.error ? first.error.message : null;
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return error.message;
+    if (data.session) return null; // já logado (autoconfirm no projeto)
+    // sem sessão: o trigger auto_confirm_email já confirmou o e-mail — entra
+    // direto por senha, sem etapa de confirmação
+    const { error: siErr } = await supabase.auth.signInWithPassword({ email, password });
+    return siErr ? siErr.message : null;
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -652,6 +642,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setNeedsNewPassword(false);
     return null;
   }, []);
+
+  /* editar o nome que o grupo/amigos veem (perfil + estado local) */
+  const updateName = useCallback(
+    async (name: string) => {
+      const clean = name.trim();
+      if (!clean) return;
+      dispatch({ type: "SET_NAME", name: clean });
+      if (!session) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ name: clean, initials: initialsOf(clean) })
+        .eq("id", session.user.id);
+      if (error) console.warn("name update:", error.message);
+    },
+    [session, dispatch]
+  );
 
   /* ————— grupo e desafios ————— */
 
@@ -872,9 +878,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         onboard,
         signIn,
         signUp,
-        confirmSignup,
         resetPassword,
         updatePassword,
+        updateName,
         createGroup,
         joinGroup,
         createChallenge,

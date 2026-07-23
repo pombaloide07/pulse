@@ -11,6 +11,7 @@ import type {
   Challenge,
   Dish,
   MealEntry,
+  NotifyPrefs,
   PlanItem,
   Profile,
   ScheduleDay,
@@ -19,6 +20,8 @@ import type {
 } from "./types";
 import { buildFreshState, buildSeedState, migrateV1toV2, migrateV2toV3 } from "./seed";
 import { defaultSchedule } from "./logic";
+import { getNotify } from "./notify";
+import { initialsOf } from "./format";
 import { fromISO, todayISO } from "./dates";
 
 const STORAGE_KEY = "pulse-state-v1";
@@ -37,6 +40,8 @@ type Action =
   | { type: "ADD_PLAN_ITEM"; workoutId: string; item: PlanItem }
   | { type: "REMOVE_PLAN_ITEM"; workoutId: string; exerciseId: string }
   | { type: "SET_PROFILE"; patch: Partial<Profile> }
+  | { type: "SET_NOTIFY"; patch: Partial<NotifyPrefs> }
+  | { type: "SET_NAME"; name: string }
   | { type: "LOG_MEALS"; entries: MealEntry[] }
   | { type: "REMOVE_MEAL"; id: string }
   | { type: "ADD_DISH"; dish: Dish }
@@ -213,6 +218,19 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case "SET_PROFILE": {
       return { ...state, profile: { ...state.profile, ...action.patch } };
+    }
+    case "SET_NOTIFY": {
+      return { ...state, notify: { ...getNotify(state), ...action.patch } };
+    }
+    case "SET_NAME": {
+      const clean = action.name.trim() || state.userName;
+      return {
+        ...state,
+        userName: clean,
+        members: state.members.map((m) =>
+          m.isMe ? { ...m, name: clean, initials: initialsOf(clean) } : m
+        ),
+      };
     }
     case "LOG_MEALS": {
       const ids = new Set(state.meals.map((m) => m.id));

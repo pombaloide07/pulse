@@ -13,6 +13,7 @@ import type {
 import { addDays, toISO } from "./dates";
 import { defaultTargets, dishGrams, dishMacros } from "./nutrition";
 import { defaultSchedule } from "./logic";
+import { defaultNotify } from "./notify";
 import { initialsOf } from "./format";
 
 /** PRNG determinístico — o seed sempre gera a mesma história. */
@@ -380,15 +381,17 @@ export function buildFreshState(name: string): AppState {
     presence: [],
     stats: {},
   };
+  const schedule = defaultSchedule(DEFAULT_WORKOUTS);
   return {
     version: 3,
     userName: clean,
     workouts: DEFAULT_WORKOUTS,
-    schedule: defaultSchedule(DEFAULT_WORKOUTS),
+    schedule,
     sessions: [],
     members: [me],
     activeSessionId: null,
     profile: makeProfile(75),
+    notify: defaultNotify(schedule),
     dishes: DEFAULT_DISHES,
     meals: [],
     weights: [],
@@ -412,14 +415,16 @@ export function buildSeedState(): AppState {
     presence: sessions.map((s) => s.date),
   };
   const phase2 = buildPhase2(new Set(me.presence));
+  const schedule = defaultSchedule(workouts);
   return {
     version: 3,
     userName: "Visitante",
     workouts,
-    schedule: defaultSchedule(workouts),
+    schedule,
     sessions,
     members: [me, ...makeFriends(weeks, rnd)],
     activeSessionId: null,
+    notify: defaultNotify(schedule),
     ...phase2,
     challenges: [buildSeedChallenge()],
   };

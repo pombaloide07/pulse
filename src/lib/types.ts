@@ -149,6 +149,24 @@ export interface WeightEntry {
   kg: number;
 }
 
+/** Preferências de notificação (por conta; sincroniza no estado). */
+export interface NotifyPrefs {
+  /** master: ligado + permissão do navegador concedida */
+  enabled: boolean;
+  /** lembrete de ir treinar quando ainda não foi */
+  train: boolean;
+  /** alguém do grupo/amigos lançou um check-in */
+  checkins: boolean;
+  /** perto do limite de gordura/carbo/caloria do dia */
+  macros: boolean;
+  /** comemoração dos 7 dias seguindo o cronograma */
+  streak: boolean;
+  /** alguém te passou / desafio acabando */
+  challenge: boolean;
+  /** horário de treino por dia (seg→dom); "HH:MM" ou "" = sem lembrete no dia */
+  trainTimes: string[];
+}
+
 /* ————— Fase 3: desafios ————— */
 
 /**
@@ -176,6 +194,8 @@ export interface AppState {
   activeSessionId: string | null;
   /* fase 2 */
   profile: Profile;
+  /** notificações — opcional (contas antigas caem no default) */
+  notify?: NotifyPrefs;
   dishes: Dish[];
   meals: MealEntry[];
   weights: WeightEntry[];

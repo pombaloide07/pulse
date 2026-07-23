@@ -124,6 +124,24 @@ export function IconBarbell({ size = 22, stroke = 2 }: IconProps) {
   );
 }
 
+export function IconBell({ size = 22, stroke = 2 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={stroke}>
+      <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
+export function IconGear({ size = 22, stroke = 1.9 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={stroke}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+    </svg>
+  );
+}
+
 export function IconMedal({ size = 20, stroke = 1.9 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={stroke}>

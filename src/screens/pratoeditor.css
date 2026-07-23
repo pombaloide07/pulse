@@ -59,7 +59,7 @@
 
 .pe-summary small {
   font-size: 10.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   font-weight: 600;
 }
 
@@ -94,7 +94,7 @@
 
 .pe-item-info small {
   font-size: 11.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
 }
 
 .pe-qty {
@@ -145,7 +145,7 @@
 
 .pe-empty {
   font-size: 13.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   padding: 8px 4px;
 }
 

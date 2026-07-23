@@ -62,11 +62,11 @@ export function DietaMetas() {
 
       <section className="card metas-card">
         <p className="eyebrow">Seu perfil</p>
-        <div className="metas-seg">
+        <div className="th-seg">
           {(["M", "F"] as const).map((s) => (
             <button
               key={s}
-              className={p.sex === s ? "on" : ""}
+              className={p.sex === s ? "th-seg-on" : ""}
               onClick={() => patch({ sex: s })}
             >
               {s === "M" ? "Masculino" : "Feminino"}
@@ -119,11 +119,11 @@ export function DietaMetas() {
 
       <section className="card metas-card">
         <p className="eyebrow">Objetivo</p>
-        <div className="metas-seg metas-seg-3">
+        <div className="th-seg th-seg-3">
           {GOALS.map((g) => (
             <button
               key={g.v}
-              className={p.goal === g.v ? "on" : ""}
+              className={p.goal === g.v ? "th-seg-on" : ""}
               onClick={() => patch({ goal: g.v })}
             >
               {g.label}

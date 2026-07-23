@@ -22,6 +22,9 @@ export function App() {
   const { needsOnboarding, needsNewPassword, session, ready } = useSync();
   // re-render quando o visitante opta pela demo (a flag mora no localStorage)
   const [, bump] = useState(0);
+  // CTAs da Landing levam à tela de login dedicada (sem sair da porta deslogada);
+  // guarda qual aba abrir (Entrar vs Criar conta), ou null pra ficar na Landing
+  const [loginMode, setLoginMode] = useState<null | "entrar" | "criar">(null);
 
   // espera a sessão inicial resolver — senão a landing pisca pra quem já
   // está logado a cada abertura do app
@@ -53,7 +56,17 @@ export function App() {
     } catch {
       /* sem localStorage: trata como visitante novo → landing */
     }
-    return returning ? <LoginScreen onExplore={goDemo} /> : <Landing onDemo={goDemo} />;
+    // returning: login é a porta (sem voltar); da Landing: login com voltar
+    if (returning || loginMode) {
+      return (
+        <LoginScreen
+          initialMode={loginMode ?? "entrar"}
+          onExplore={goDemo}
+          onBack={returning ? undefined : () => setLoginMode(null)}
+        />
+      );
+    }
+    return <Landing onDemo={goDemo} onLogin={setLoginMode} />;
   }
 
   // chegou pelo link de "esqueci a senha": define a nova antes de tudo

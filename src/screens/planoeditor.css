@@ -116,7 +116,7 @@
 
 .editor-item header p {
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   margin-top: 2px;
 }
 
@@ -140,7 +140,7 @@
 .editor-fields {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .field {
@@ -150,7 +150,8 @@
   gap: 5px;
   background: var(--paper);
   border-radius: var(--r-sm);
-  padding: 9px 6px;
+  padding: 9px 4px;
+  min-width: 0;
 }
 
 .field-label {
@@ -158,25 +159,25 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-cap);
 }
 
 .field-ctrl {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .field-ctrl b {
-  min-width: 34px;
+  min-width: 20px;
   text-align: center;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 600;
 }
 
 .field-ctrl button {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -184,6 +185,7 @@
   background: var(--card);
   border: 1px solid var(--line-soft);
   color: var(--ink-3);
+  flex-shrink: 0;
 }
 
 .field-ctrl button:active {
@@ -295,11 +297,11 @@
 
 .picker-list small {
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
 }
 
 .picker-empty {
   padding: 18px 4px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   font-size: 14px;
 }

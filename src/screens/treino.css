@@ -33,26 +33,4 @@
   margin-top: 8px;
 }
 
-.th-seg {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--paper-deep);
-  border-radius: var(--r-pill);
-  padding: 4px;
-  gap: 4px;
-}
-
-.th-seg button {
-  padding: 10px;
-  border-radius: var(--r-pill);
-  font-size: 14.5px;
-  font-weight: 650;
-  color: var(--ink-2);
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.th-seg .th-seg-on {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 2px 8px -2px rgba(72, 58, 36, 0.18);
-}
+/* .th-seg (segmented) foi consolidado em global.css */

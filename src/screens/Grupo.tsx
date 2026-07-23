@@ -62,7 +62,7 @@ export function Grupo() {
         )}
       </header>
 
-      <div className="th-seg grupo-seg rise" role="tablist" aria-label="Seção do grupo">
+      <div className="th-seg th-seg-3 rise" role="tablist" aria-label="Seção do grupo">
         <button
           role="tab"
           aria-selected={seg === "turma"}

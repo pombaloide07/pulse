@@ -50,7 +50,7 @@
 
 .aj-profile-fields small {
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,7 +67,7 @@
 .aj-master-sub {
   display: block;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   margin-top: 4px;
   max-width: 30ch;
   line-height: 1.4;
@@ -135,7 +135,7 @@
 .aj-type-info small {
   display: block;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   line-height: 1.35;
   margin-top: 1px;
 }
@@ -212,7 +212,7 @@
 
 .aj-foot {
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   font-style: italic;
   font-family: var(--serif);
   text-align: center;

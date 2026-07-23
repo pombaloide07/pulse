@@ -93,7 +93,7 @@
 
 .ex-head p {
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   margin-top: 3px;
 }
 
@@ -126,10 +126,10 @@
 
 .set-row {
   display: grid;
-  grid-template-columns: 22px 1fr 1fr 52px;
+  grid-template-columns: 18px 1fr 1fr 44px;
   align-items: center;
-  gap: 8px;
-  padding: 7px 6px;
+  gap: 4px;
+  padding: 7px 3px;
   border-radius: var(--r-sm);
   background: var(--paper);
   border: 1px solid transparent;
@@ -160,13 +160,14 @@
 }
 
 .stepper button {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--ink-3);
+  flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
@@ -180,7 +181,7 @@
   display: flex;
   align-items: baseline;
   gap: 2px;
-  min-width: 44px;
+  min-width: 28px;
   justify-content: center;
 }
 
@@ -230,7 +231,7 @@
 .sessao-hint {
   text-align: center;
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   margin-top: 9px;
 }
 

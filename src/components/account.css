@@ -141,50 +141,186 @@
   color: var(--ink-3);
 }
 
-/* ————— tela de login direta (quem já entrou neste aparelho) ————— */
+/* ————— formulário de login (compartilhado: tela e sheet) ————— */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-title {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.login-title em {
+  font-style: italic;
+  color: var(--pulse-deep);
+}
+
+.login-sub {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin-top: -6px;
+}
+
+.login-seg {
+  margin-top: 6px;
+}
+
+.login-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+/* campo rotulado: label em eyebrow + caixa com anel de foco coral */
+.field-l {
+  display: block;
+}
+
+.field-l-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-cap);
+  margin: 0 0 7px 4px;
+}
+
+.field-l-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 3px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-l-box:focus-within {
+  border-color: var(--pulse);
+  box-shadow: 0 0 0 3px var(--pulse-soft);
+}
+
+.field-l-box input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 12px 0;
+  font-size: 15.5px;
+  color: var(--ink);
+}
+
+.field-l-box input::placeholder {
+  color: var(--ink-3);
+}
+
+.field-l-show {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--pulse-deep);
+  padding: 4px;
+}
+
+.login-forgot {
+  align-self: flex-end;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+  padding: 2px;
+}
+
+/* ————— tela de login dedicada ————— */
 .login-screen {
   position: relative;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+  padding: calc(26px + env(safe-area-inset-top)) 22px calc(24px + env(safe-area-inset-bottom));
   overflow: hidden;
 }
 
 .login-screen-inner {
   position: relative;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   margin: 0 auto;
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.login-screen .ld-brand {
-  align-self: center;
-  margin-bottom: 8px;
-}
-
-.login-screen-title {
-  font-family: var(--serif);
-  font-size: 30px;
-  font-weight: 560;
-  letter-spacing: -0.01em;
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.login-explore {
-  margin-top: 20px;
-  align-self: center;
-  font-size: 13.5px;
-  font-weight: 600;
+.login-back {
+  align-self: flex-start;
+  display: inline-flex;
   color: var(--ink-2);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--line);
-  padding: 8px 12px;
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
+.login-brand-tile {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  color: var(--pulse);
+  margin-bottom: 22px;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--ink-cap);
+}
+
+.login-divider span {
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.login-explore-btn {
+  width: 100%;
+  margin-top: 16px;
+  padding: 15px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.login-note {
+  margin-top: auto;
+  padding-top: 24px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-cap);
+  font-family: var(--serif);
+  font-style: italic;
 }
 
 /* botão do avatar no sheet de conta (trocar foto) */

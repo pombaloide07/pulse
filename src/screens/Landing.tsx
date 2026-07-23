@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { LoginSheet } from "../components/account";
 import { BigButton } from "../components/ui";
 import {
   IconBarbell,
@@ -12,13 +10,17 @@ import {
 import "./landing.css";
 
 /**
- * Porta de entrada do Pulse: quem chega deslogado vê isto — manifesto,
- * o que o app faz, e o CTA de login. O app em si só abre com conta
- * (ou pela escolha explícita de explorar a demonstração).
+ * Porta de entrada do Pulse: manifesto + o que o app faz + prova social + uma
+ * espiada nas telas + CTA. O app em si só abre com conta (ou pela escolha
+ * explícita de explorar a demonstração).
  */
-export function Landing({ onDemo }: { onDemo: () => void }) {
-  const [login, setLogin] = useState(false);
-
+export function Landing({
+  onDemo,
+  onLogin,
+}: {
+  onDemo: () => void;
+  onLogin: (mode: "entrar" | "criar") => void;
+}) {
   return (
     <main className="landing">
       <div className="aurora" aria-hidden />
@@ -28,11 +30,12 @@ export function Landing({ onDemo }: { onDemo: () => void }) {
           <IconPulse size={22} stroke={2.4} />
           Pulse
         </span>
-        <button className="ld-top-enter" onClick={() => setLogin(true)}>
+        <button className="ld-top-enter" onClick={() => onLogin("entrar")}>
           Entrar
         </button>
       </header>
 
+      {/* hero */}
       <section className="ld-hero rise">
         <p className="eyebrow">Treino · dieta · grupo</p>
         <h1>
@@ -47,19 +50,73 @@ export function Landing({ onDemo }: { onDemo: () => void }) {
           <path d="M0 24h86l14-16 18 30 14-22 10 8h178" />
         </svg>
         <div className="ld-cta">
-          <BigButton onClick={() => setLogin(true)} tone="pulse">
+          <BigButton onClick={() => onLogin("criar")} tone="pulse">
             <IconPulse size={20} />
-            Entrar no Pulse
+            Criar conta grátis
           </BigButton>
           <button className="ld-demo" onClick={onDemo}>
-            Explorar sem conta — dados de exemplo
+            Explorar sem conta — dados de exemplo →
           </button>
         </div>
-        <p className="ld-cta-note">
-          E-mail e senha, simples — a confirmação por e-mail é só na criação da conta.
+        <p className="ld-cta-note">E-mail e senha. Sem cartão, sem pegadinha.</p>
+      </section>
+
+      {/* prova social — PLACEHOLDER: voz do produto, não um depoimento real.
+          Troque por citações de usuários reais (ou remova) antes do lançamento. */}
+      <section className="ld-social rise">
+        <div className="ld-social-avatars" aria-hidden>
+          <span className="ld-social-av ld-av-pulse">JP</span>
+          <span className="ld-social-av ld-av-mata">RM</span>
+          <span className="ld-social-av ld-av-ambar">CA</span>
+          <span className="ld-social-av ld-av-ceu">LS</span>
+          <span className="ld-social-av ld-social-check">
+            <IconCheck size={15} stroke={3} />
+          </span>
+        </div>
+        <p className="ld-social-quote">
+          Feito pra treinar em turma — sem ranking, sem peso, sem foto do corpo.
+        </p>
+        <p className="ld-social-note">
+          A presença e a constância ficam com o grupo. Seus números ficam só com você.
         </p>
       </section>
 
+      {/* veja por dentro — mini Hoje + mini Resumo */}
+      <section className="ld-peek rise">
+        <p className="eyebrow">Veja por dentro</p>
+        <div className="ld-peek-row">
+          <div className="ld-peek-card">
+            <p className="ld-peek-eyebrow">Sua semana</p>
+            <div className="ld-peek-week" aria-hidden>
+              <span className="ld-dot ld-dot-on" />
+              <span className="ld-dot ld-dot-on" />
+              <span className="ld-dot" />
+              <span className="ld-dot ld-dot-on" />
+              <span className="ld-dot" />
+              <span className="ld-dot" />
+              <span className="ld-dot" />
+            </div>
+            <div className="ld-peek-today">
+              <span className="ld-peek-letter">A</span>
+              <div>
+                <p className="ld-peek-cap">Treino de hoje</p>
+                <p className="ld-peek-name">Empurrar</p>
+              </div>
+            </div>
+          </div>
+          <div className="ld-peek-card ld-peek-resumo">
+            <span className="ld-peek-check">
+              <IconCheck size={18} stroke={2.6} />
+            </span>
+            <p className="ld-peek-appeared">
+              Você<br />
+              <em>apareceu.</em>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* features — os 4 pilares */}
       <section className="ld-features">
         <article className="card ld-feature rise">
           <span className="ld-fi ld-fi-pulse">
@@ -116,22 +173,34 @@ export function Landing({ onDemo }: { onDemo: () => void }) {
         </article>
       </section>
 
+      {/* como funciona — 3 passos numerados */}
       <section className="ld-how rise">
         <p className="eyebrow">Como funciona</p>
         <ol>
           <li>
-            <IconCheck size={15} stroke={3} />
-            Entre com seu e-mail — a conta nasce na hora, sem senha.
+            <span className="ld-how-num">1</span>
+            Crie sua conta com e-mail e senha — você entra na hora.
           </li>
           <li>
-            <IconCheck size={15} stroke={3} />
-            Crie o grupo da academia ou entre com o código de um amigo.
+            <span className="ld-how-num">2</span>
+            Monte o grupo da academia ou entre com o código de um amigo.
           </li>
           <li>
-            <IconCheck size={15} stroke={3} />
-            Apareça. O Pulse cuida do resto: rotação, metas e leitura do mês.
+            <span className="ld-how-num">3</span>
+            Apareça. O Pulse cuida do resto: rotação, metas e a leitura do mês.
           </li>
         </ol>
+      </section>
+
+      {/* CTA final */}
+      <section className="ld-final rise">
+        <h2>
+          Bora <em>aparecer.</em>
+        </h2>
+        <BigButton onClick={() => onLogin("criar")} tone="pulse">
+          <IconPulse size={20} />
+          Criar conta grátis
+        </BigButton>
       </section>
 
       <footer className="ld-foot rise">
@@ -140,8 +209,6 @@ export function Landing({ onDemo }: { onDemo: () => void }) {
           Facts (ODbL) · seus dados sincronizam na nuvem e são seus.
         </p>
       </footer>
-
-      {login && <LoginSheet onClose={() => setLogin(false)} />}
     </main>
   );
 }

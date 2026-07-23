@@ -54,7 +54,7 @@
 
 .resumo-hero > p {
   margin-top: 12px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   font-size: 14px;
 }
 
@@ -142,7 +142,7 @@
 
 .reading-foot {
   font-size: 13.5px;
-  color: var(--ink-3);
+  color: var(--ink-cap);
   font-style: italic;
   font-family: var(--serif);
 }

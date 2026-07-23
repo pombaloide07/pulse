@@ -34,8 +34,26 @@ como notificação do sistema. Tipos: lembrete de treino (no horário que você 
 macro perto do limite (kcal/carbo/gordura em 90–115% da meta), comemoração de 7
 dias seguindo o cronograma, e desafio (te passaram / prazo acabando). Dedupe por
 chave; baseline silencioso no primeiro load pra não spammar; limpa no logout. As
-prefs vivem em `state.notify` (sincronizam). Observação: avisos com o app fechado
-dependeriam de push server + service worker — hoje disparam com o app aberto.
+prefs vivem em `state.notify` (sincronizam).
+
+**Web Push (app fechado):** um service worker (`public/sw.js`) + a edge function
+`push` (Supabase, Deno) entregam notificações mesmo com o app fechado. Ao ligar
+as notificações em Ajustes o cliente assina o `pushManager` (VAPID) e guarda a
+subscription em `push_subscriptions` (RLS por dono). Um trigger em `checkins` (só
+o 1º do dia) chama a função pra avisar grupo+amigos; um `pg_cron` a cada 15 min
+chama a função pro lembrete de treino (no horário local de cada um, por fuso),
+desafio acabando e "te passaram". A função usa `jsr:@negrel/webpush` (Web Crypto,
+RFC 8291/8292), lê VAPID+secret de `public.push_config` (RLS deny-all → só
+service_role/definer) e autentica as chamadas internas por shared secret
+(`x-push-secret`, `verify_jwt=false`). Migração 0010. Macros e streak seguem só
+no app (são eventos locais). Nota: iOS só entrega push com o PWA instalado na
+tela inicial; navegadores de automação não recebem push real (afeta só teste).
+
+**Senha vazada (HIBP):** cadastro e troca de senha checam a senha contra o
+HaveIBeenPwned via k-anonymity no cliente (`src/lib/pwned.ts`) — só o prefixo do
+SHA-1 sai do aparelho, fail-open se a API cair. É o equivalente client-side do
+"leaked password protection" (o toggle server-side do Supabase Auth continua um
+complemento recomendável no painel).
 
 ## O que está implementado
 

@@ -2,8 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
+import { isPasswordPwned } from "../lib/pwned";
 import { Avatar, BigButton, Sheet } from "./ui";
 import "./account.css";
+
+const PWNED_MSG = "Essa senha apareceu em vazamentos de dados públicos. Escolha outra.";
 
 /* ————— entrar / criar conta (e-mail + senha) —————
    Login e cadastro são só e-mail e senha, sem etapa de confirmação. O e-mail
@@ -33,8 +36,12 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
 
   const doSignIn = () => run(() => sync.signIn(email.trim(), password), onClose);
 
-  // cadastro sem confirmação: entra direto
-  const doSignUp = () => run(() => sync.signUp(email.trim(), password), onClose);
+  // cadastro sem confirmação: entra direto. Bloqueia senha vazada (HIBP).
+  const doSignUp = () =>
+    run(async () => {
+      if (await isPasswordPwned(password)) return PWNED_MSG;
+      return sync.signUp(email.trim(), password);
+    }, onClose);
 
   const doReset = () =>
     run(() => sync.resetPassword(email.trim()), () => setMode("esqueci-ok"));
@@ -170,6 +177,11 @@ export function NewPasswordSheet() {
   const save = async () => {
     setBusy(true);
     setError(null);
+    if (await isPasswordPwned(password)) {
+      setBusy(false);
+      setError(PWNED_MSG);
+      return;
+    }
     const err = await sync.updatePassword(password);
     setBusy(false);
     if (err) setError(err);

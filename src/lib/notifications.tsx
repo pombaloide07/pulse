@@ -11,6 +11,7 @@ import {
 import { useStore } from "./store";
 import { useSync } from "./sync";
 import { getNotify } from "./notify";
+import { syncWebPush } from "./push";
 import { getSchedule } from "./logic";
 import { dayTotals } from "./nutrition";
 import { diffDays, todayISO } from "./dates";
@@ -178,6 +179,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [sync.session]);
 
   const active = prefs.enabled && !!sync.session;
+
+  // reconcilia a subscription de Web Push no boot: se está logado, com
+  // notificações ligadas e permissão concedida, garante que o endpoint atual
+  // está no banco (o browser pode ter renovado a subscription)
+  useEffect(() => {
+    if (active && permission === "granted") void syncWebPush();
+  }, [active, permission]);
 
   /* ————— detector: lembrete de treino (checa a cada minuto) ————— */
   const trainedToday = useMemo(() => {

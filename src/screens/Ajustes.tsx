@@ -4,6 +4,7 @@ import { useStore } from "../lib/store";
 import { useSync } from "../lib/sync";
 import { useNotifications } from "../lib/notifications";
 import { getNotify } from "../lib/notify";
+import { disableWebPush, enableWebPush, pushSupported } from "../lib/push";
 import { WEEKDAY_SHORT } from "../lib/dates";
 import { Avatar, BigButton } from "../components/ui";
 import { GroupSheet } from "../components/account";
@@ -52,12 +53,14 @@ export function Ajustes() {
   const toggleMaster = async () => {
     if (prefs.enabled) {
       setNotify({ enabled: false });
+      disableWebPush(); // cancela o push (app fechado) ao desligar
       return;
     }
     const ok = await notif.enable();
     // liga mesmo sem permissão do SO: o inbox interno funciona de qualquer forma
     setNotify({ enabled: true });
-    if (!ok) setAvatarErr(null); // (permissão negada só limita o popup do sistema)
+    // com permissão, assina o Web Push pra receber com o app fechado
+    if (ok && pushSupported()) enableWebPush();
   };
 
   const setTime = (day: number, value: string) => {
